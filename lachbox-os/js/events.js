@@ -192,7 +192,7 @@ function openEventCreateModal(onSaved){
   const event = {
     customerId: null, leadId: null, eventName: "", eventType: "", date: "",
     startTime: "", endTime: "", location: "", address: "", package: "", price: 0,
-    extras: [], discount: 0, staff: "", notes: "", checklistId: null, invoiceId: null,
+    extras: [], costs: [], discount: 0, staff: "", notes: "", checklistId: null, invoiceId: null,
     status: "Gepland"
   };
 
@@ -255,7 +255,10 @@ function renderEventDetailPage(container, params){
     container.appendChild(page);
     return;
   }
-  const event = Object.assign({ extras: [], discount: 0 }, original, { extras: (original.extras || []).map(x => Object.assign({}, x)) });
+  const event = Object.assign({ extras: [], costs: [], discount: 0 }, original, {
+    extras: (original.extras || []).map(x => Object.assign({}, x)),
+    costs: (original.costs || []).map(x => Object.assign({}, x))
+  });
   const customer = state().getCustomerById(event.customerId);
   const settings = state().cache.settings;
   let dirty = false;
@@ -353,11 +356,11 @@ function renderEventDetailPage(container, params){
   booking.appendChild(utils().make("h2", "section-heading", "Boeking"));
   const packageOptions = Object.keys(settings.components).map(key => [settings.components[key].name, settings.components[key].name]);
   packageOptions.push(["", "Maatwerk / anders"]);
-  const priceField = utils().textField("Prijs (€)", event.price, v => { event.price = Number(v) || 0; markDirty(); updateTotal(); }, { type: "number" });
+  const priceField = utils().textField("Prijs (€)", event.price, v => { event.price = Number(v) || 0; markDirty(); updateTotal(); updateCostsTotal(); }, { type: "number" });
   const packageField = utils().selectField("Pakket", event.package, packageOptions, v => {
     event.package = v; markDirty();
     const comp = Object.values(settings.components).find(c => c.name === v);
-    if (comp){ event.price = comp.price; priceField._input.value = comp.price; updateTotal(); }
+    if (comp){ event.price = comp.price; priceField._input.value = comp.price; updateTotal(); updateCostsTotal(); }
   });
   booking.appendChild(utils().fieldRow(packageField, priceField));
 
@@ -374,10 +377,10 @@ function renderEventDetailPage(container, params){
       labelInput.addEventListener("input", () => { extra.label = labelInput.value; markDirty(); });
       const priceInput = document.createElement("input");
       priceInput.type = "number"; priceInput.step = "0.01"; priceInput.value = extra.price || 0;
-      priceInput.addEventListener("input", () => { extra.price = Number(priceInput.value) || 0; markDirty(); updateTotal(); });
+      priceInput.addEventListener("input", () => { extra.price = Number(priceInput.value) || 0; markDirty(); updateTotal(); updateCostsTotal(); });
       const delExtraBtn = utils().make("button", "icon-btn", "✕");
       delExtraBtn.type = "button";
-      delExtraBtn.addEventListener("click", () => { event.extras.splice(idx, 1); markDirty(); updateTotal(); renderExtras(); });
+      delExtraBtn.addEventListener("click", () => { event.extras.splice(idx, 1); markDirty(); updateTotal(); updateCostsTotal(); renderExtras(); });
       row.appendChild(labelInput); row.appendChild(priceInput); row.appendChild(delExtraBtn);
       extrasList.appendChild(row);
     });
@@ -388,7 +391,7 @@ function renderEventDetailPage(container, params){
   addExtraBtn.addEventListener("click", () => { event.extras.push({ label: "", price: 0 }); markDirty(); renderExtras(); });
   booking.appendChild(addExtraBtn);
 
-  const discountField = utils().textField("Korting (€)", event.discount, v => { event.discount = Number(v) || 0; markDirty(); updateTotal(); }, { type: "number" });
+  const discountField = utils().textField("Korting (€)", event.discount, v => { event.discount = Number(v) || 0; markDirty(); updateTotal(); updateCostsTotal(); }, { type: "number" });
   booking.appendChild(discountField);
 
   const totalRow = utils().make("div", "booking-total");
@@ -396,13 +399,60 @@ function renderEventDetailPage(container, params){
   const totalValue = utils().make("span", null, "");
   totalRow.appendChild(totalValue);
   booking.appendChild(totalRow);
-  function updateTotal(){
+  function bookingTotal(){
     const extrasSum = event.extras.reduce((s, e) => s + (Number(e.price) || 0), 0);
-    const total = (Number(event.price) || 0) + extrasSum - (Number(event.discount) || 0);
-    totalValue.textContent = utils().formatCurrency(total);
+    return (Number(event.price) || 0) + extrasSum - (Number(event.discount) || 0);
+  }
+  function updateTotal(){
+    totalValue.textContent = utils().formatCurrency(bookingTotal());
   }
   updateTotal();
   page.appendChild(booking);
+
+  // ---- KOSTEN (sectie 6 van het financieel-plan: winst per event) ----
+  const costsSection = utils().make("div", "section-card");
+  costsSection.appendChild(utils().make("h2", "section-heading", "Kosten"));
+  costsSection.appendChild(utils().make("div", "field-hint", "Materiaal, personeel, reiskosten of andere kosten voor dit event — telt mee in de winstberekening op de Financieel-pagina."));
+  event.costs = event.costs || [];
+  const costsList = utils().make("div", "extras-list");
+  costsSection.appendChild(costsList);
+  function renderCosts(){
+    utils().clear(costsList);
+    event.costs.forEach((cost, idx) => {
+      const row = utils().make("div", "extras-row");
+      const labelInput = document.createElement("input");
+      labelInput.type = "text"; labelInput.value = cost.label || "";
+      labelInput.placeholder = "Omschrijving (bijv. materiaal, personeel)";
+      labelInput.addEventListener("input", () => { cost.label = labelInput.value; markDirty(); });
+      const amountInput = document.createElement("input");
+      amountInput.type = "number"; amountInput.step = "0.01"; amountInput.value = cost.amount || 0;
+      amountInput.addEventListener("input", () => { cost.amount = Number(amountInput.value) || 0; markDirty(); updateCostsTotal(); });
+      const delCostBtn = utils().make("button", "icon-btn", "✕");
+      delCostBtn.type = "button";
+      delCostBtn.addEventListener("click", () => { event.costs.splice(idx, 1); markDirty(); updateCostsTotal(); renderCosts(); });
+      row.appendChild(labelInput); row.appendChild(amountInput); row.appendChild(delCostBtn);
+      costsList.appendChild(row);
+    });
+  }
+  renderCosts();
+  const addCostBtn = utils().make("button", "btn ghost small", "+ kostenpost toevoegen");
+  addCostBtn.type = "button";
+  addCostBtn.addEventListener("click", () => { event.costs.push({ label: "", amount: 0 }); markDirty(); renderCosts(); });
+  costsSection.appendChild(addCostBtn);
+
+  const profitRow = utils().make("div", "booking-total");
+  profitRow.appendChild(utils().make("span", null, "Verwachte winst (boekingswaarde − kosten)"));
+  const profitValue = utils().make("span", null, "");
+  profitRow.appendChild(profitValue);
+  costsSection.appendChild(profitRow);
+  function updateCostsTotal(){
+    const costsSum = event.costs.reduce((s, c) => s + (Number(c.amount) || 0), 0);
+    const profit = bookingTotal() - costsSum;
+    profitValue.textContent = utils().formatCurrency(profit);
+    profitValue.className = profit < 0 ? "cell-danger" : "";
+  }
+  updateCostsTotal();
+  page.appendChild(costsSection);
 
   const saveBtn = utils().make("button", "btn primary", "Wijzigingen opslaan");
   saveBtn.type = "button";

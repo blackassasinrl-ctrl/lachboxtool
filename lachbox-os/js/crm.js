@@ -264,7 +264,7 @@ async function actuallyCreateEvent(lead, customer, onDone){
     address: "",
     package: comp ? comp.name : (lead.requestedPackage || ""),
     price: Number(lead.estimatedValue) || (comp ? comp.price : 0),
-    extras: [], staff: "", notes: "",
+    extras: [], costs: [], staff: "", notes: "",
     checklistId: null, invoiceId: null,
     status: "Gepland"
   };
