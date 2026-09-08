@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lachbox OS</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <img id="sidebarLogo" alt="Lachbox">
+      <span class="brand-name">Lachbox OS</span>
+    </div>
+    <nav class="sidebar-nav" id="sidebarNav"></nav>
+  </aside>
+
+  <div class="app-main">
+    <div class="topbar">
+      <button class="sidebar-toggle" id="btnToggleSidebar" aria-label="Menu">☰</button>
+      <span class="brand-name">Lachbox OS</span>
+    </div>
+    <main class="app-content" id="appContent"></main>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<div class="modal-overlay" id="confirmModal" hidden>
+  <div class="modal">
+    <h2 id="confirmTitle">Weet je het zeker?</h2>
+    <p id="confirmMessage"></p>
+    <div class="modal-actions">
+      <button class="btn secondary" id="btnConfirmCancel">Annuleren</button>
+      <button class="btn danger" id="btnConfirmOk">Doorgaan</button>
+    </div>
+  </div>
+</div>
+
+<!-- Classic scripts (geen type="module"): werkt gegarandeerd ook als dit
+     bestand rechtstreeks vanaf schijf wordt geopend (file://), niet alleen
+     wanneer het gehost wordt. Volgorde is belangrijk: elk bestand hangt zijn
+     functies aan het gedeelde LachboxOS-namespace-object. -->
+<script src="js/logo-data.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/state.js"></script>
+<script src="js/navigation.js"></script>
+<script src="js/dashboard.js"></script>
+<script src="js/settings.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
