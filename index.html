@@ -1,0 +1,1929 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lachbox — Facturatietool</title>
+<style>
+/* =========================================================
+   LACHBOX FACTURATIETOOL — STYLESHEET
+   Minimalistisch zwart/wit, veel witruimte, dunne lijnen.
+   ========================================================= */
+
+:root{
+  --bg: #ffffff;
+  --fg: #111111;
+  --muted: #6b6b6b;
+  --line: #e2e2e2;
+  --line-strong: #111111;
+  --panel: #fafafa;
+  --danger: #b3261e;
+  --danger-bg: #fdecea;
+  --success: #1c7a3c;
+  --success-bg: #eaf6ee;
+  --radius: 2px;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+}
+
+*{ box-sizing: border-box; }
+html,body{ margin:0; padding:0; }
+body{
+  font-family: var(--font);
+  color: var(--fg);
+  background: #f3f3f1;
+  font-size: 14px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,h2,h3,h4{ margin:0; font-weight:600; }
+button{ font-family:inherit; font-size:inherit; }
+input, select, textarea{
+  font-family:inherit;
+  font-size:13px;
+  color: var(--fg);
+  background:#fff;
+  border:1px solid #d6d6d6;
+  border-radius: var(--radius);
+  padding:8px 10px;
+  width:100%;
+  outline:none;
+  transition: border-color .12s ease;
+}
+input:focus, select:focus, textarea:focus{ border-color:#111; }
+input.field-error, select.field-error{ border-color: var(--danger); background:#fffaf9; }
+label{ display:block; font-size:12px; font-weight:600; letter-spacing:.02em; color:#333; margin-bottom:4px; }
+.hint{ font-size:11px; color:var(--muted); margin-top:3px; }
+
+/* ---------- Topbar ---------- */
+.topbar{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 24px; background:#fff; border-bottom:1px solid var(--line);
+  position:sticky; top:0; z-index:20;
+}
+.topbar .brand{ display:flex; align-items:center; gap:10px; }
+.topbar .brand .logo-text{ font-weight:700; font-size:18px; letter-spacing:.02em; }
+.topbar .brand .subtitle{ font-size:11px; color:var(--muted); border-left:1px solid var(--line); padding-left:10px; }
+.topbar .actions{ display:flex; gap:8px; }
+
+/* ---------- Buttons ---------- */
+.btn{
+  display:inline-flex; align-items:center; gap:6px;
+  padding:9px 16px; border-radius: var(--radius);
+  border:1px solid #111; background:#fff; color:#111;
+  cursor:pointer; font-weight:600; font-size:13px;
+  white-space:nowrap;
+  transition: background .12s ease, color .12s ease, opacity .12s ease;
+}
+.btn:hover{ background:#111; color:#fff; }
+.btn:active{ opacity:.75; }
+.btn.primary{ background:#111; color:#fff; }
+.btn.primary:hover{ background:#000; }
+.btn.secondary{ border-color:#d6d6d6; color:#333; }
+.btn.secondary:hover{ background:#111; color:#fff; border-color:#111; }
+.btn.ghost{ border-color:transparent; color:#333; padding:8px 10px; }
+.btn.ghost:hover{ background:#f0f0f0; color:#111; }
+.btn.danger{ border-color:var(--danger); color:var(--danger); }
+.btn.danger:hover{ background:var(--danger); color:#fff; }
+.btn.small{ padding:5px 10px; font-size:12px; }
+.btn:disabled{ opacity:.4; cursor:not-allowed; }
+.btn:disabled:hover{ background:#fff; color:#111; }
+
+/* ---------- Layout ---------- */
+.layout{
+  display:grid;
+  grid-template-columns: 460px 1fr;
+  gap:24px;
+  padding:24px;
+  align-items:start;
+  max-width:1680px;
+  margin:0 auto;
+}
+@media (max-width: 1100px){
+  .layout{ grid-template-columns: 1fr; }
+}
+
+/* ---------- Form panel ---------- */
+.form-panel{
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:4px;
+  padding:0;
+  position:sticky;
+  top:70px;
+  max-height: calc(100vh - 90px);
+  overflow-y:auto;
+}
+@media (max-width: 1100px){
+  .form-panel{ position:static; max-height:none; }
+}
+.section{ padding:20px 22px; border-bottom:1px solid var(--line); }
+.section:last-child{ border-bottom:none; }
+.section-title{
+  font-size:12px; text-transform:uppercase; letter-spacing:.08em;
+  color:#888; font-weight:700; margin-bottom:14px;
+  display:flex; align-items:center; justify-content:space-between;
+}
+.field-row{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; }
+.field-row.cols-3{ grid-template-columns:1fr 1fr 1fr; }
+.field{ margin-bottom:10px; }
+.field:last-child{ margin-bottom:0; }
+.field-row .field{ margin-bottom:0; }
+details.settings summary{ cursor:pointer; font-size:12px; color:var(--muted); font-weight:600; margin-bottom:10px; }
+details.settings[open] summary{ margin-bottom:14px; }
+
+/* ---------- Line items editor ---------- */
+.lines-list{ display:flex; flex-direction:column; gap:10px; margin-bottom:12px; }
+.line-card{
+  border:1px solid var(--line); border-radius:3px; padding:12px; background:var(--panel);
+}
+.line-card.discount{ background:#fbfbf8; border-style:dashed; }
+.line-card-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+.line-card-head .line-type-badge{
+  font-size:10px; text-transform:uppercase; letter-spacing:.06em; font-weight:700; color:#888;
+}
+.line-card-actions{ display:flex; gap:4px; }
+.icon-btn{
+  border:none; background:transparent; cursor:pointer; color:#888; padding:3px 6px; font-size:13px; border-radius:3px;
+}
+.icon-btn:hover{ background:#eee; color:#111; }
+.line-card .field{ margin-bottom:8px; }
+.line-grid{ display:grid; grid-template-columns: repeat(4, 1fr); gap:8px; }
+.line-grid .field.span-2{ grid-column: span 2; }
+.line-grid .field.span-4{ grid-column: span 4; }
+.amount-readout{
+  font-family: var(--mono); font-size:13px; font-weight:700; text-align:right; padding-top:6px;
+}
+.vat-mode-toggle{ display:flex; border:1px solid #d6d6d6; border-radius:var(--radius); overflow:hidden; }
+.vat-mode-toggle button{
+  flex:1; border:none; background:#fff; padding:7px 4px; font-size:12px; cursor:pointer; color:#555;
+}
+.vat-mode-toggle button.active{ background:#111; color:#fff; }
+
+.add-line-buttons{ display:flex; gap:8px; }
+.add-line-buttons .btn{ flex:1; justify-content:center; }
+
+/* ---------- Package grid ---------- */
+.package-select{ margin-bottom:12px; }
+
+/* ---------- Preview panel ---------- */
+.preview-panel{ display:flex; flex-direction:column; gap:12px; }
+.preview-toolbar{
+  display:flex; align-items:center; justify-content:space-between;
+  background:#fff; border:1px solid var(--line); border-radius:4px;
+  padding:12px 16px; flex-wrap:wrap; gap:10px;
+}
+.filename-preview{ font-family: var(--mono); font-size:12px; color:var(--muted); }
+.filename-preview strong{ color:#111; font-weight:600; }
+.preview-toolbar .actions{ display:flex; gap:8px; }
+
+#invoicePreviewWrapper{
+  display:flex; justify-content:center;
+  overflow-x:auto;
+  padding: 10px 0 40px;
+}
+#invoicePreview.a4{
+  width:210mm;
+  min-height:297mm;
+  background:#fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,.08), 0 12px 32px rgba(0,0,0,.10);
+  padding:18mm 16mm;
+  flex-shrink:0;
+  color:#111;
+}
+
+/* ---------- Invoice document styling ---------- */
+.inv-header{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:34px; }
+.inv-logo{ font-size:22px; font-weight:800; letter-spacing:.01em; }
+.inv-logo img{ max-height:46px; display:block; }
+.inv-logo .tagline{ font-size:10px; color:#999; letter-spacing:.08em; text-transform:uppercase; margin-top:4px; font-weight:500; }
+.inv-title{ text-align:right; }
+.inv-title h1{ font-size:30px; letter-spacing:.06em; font-weight:800; }
+.inv-title .inv-meta-line{ font-size:12px; color:#444; margin-top:4px; }
+.inv-title .inv-meta-line b{ color:#111; }
+
+.inv-parties{ display:flex; justify-content:space-between; gap:24px; margin-bottom:30px; }
+.inv-block{ font-size:12.5px; }
+.inv-block .block-label{ font-size:10px; text-transform:uppercase; letter-spacing:.08em; color:#999; font-weight:700; margin-bottom:6px; }
+.inv-block .line{ line-height:1.55; }
+.inv-block.to{ max-width:60%; }
+.inv-block.meta{ text-align:right; min-width:180px; }
+.inv-block.meta .meta-row{ display:flex; justify-content:space-between; gap:16px; padding:2px 0; }
+.inv-block.meta .meta-row .k{ color:#888; }
+.inv-block.meta .meta-row .v{ font-weight:600; }
+
+.inv-event-line{ font-size:11.5px; color:#666; margin-bottom:22px; border-top:1px solid var(--line); border-bottom:1px solid var(--line); padding:8px 0; }
+
+table.inv-table{ width:100%; border-collapse:collapse; margin-bottom:8px; }
+table.inv-table thead th{
+  text-align:left; font-size:10px; text-transform:uppercase; letter-spacing:.07em; color:#888;
+  border-bottom:1px solid var(--line-strong); padding:0 4px 8px; font-weight:700;
+}
+table.inv-table thead th.num{ text-align:right; }
+table.inv-table tbody td{
+  padding:10px 4px; border-bottom:1px solid var(--line); font-size:12.5px; vertical-align:top;
+}
+table.inv-table tbody td.num{ text-align:right; font-variant-numeric: tabular-nums; white-space:nowrap; }
+table.inv-table tbody tr.discount-row td{ color:#555; font-style:italic; }
+.desc-main{ font-weight:600; }
+.desc-sub{ font-size:11px; color:#888; margin-top:2px; font-style:normal; }
+
+.inv-totals{ display:flex; justify-content:flex-end; margin-top:14px; }
+.inv-totals .totals-box{ width:280px; }
+.totals-row{ display:flex; justify-content:space-between; padding:5px 0; font-size:12.5px; }
+.totals-row .k{ color:#666; }
+.totals-row.grand{ border-top:1.5px solid #111; margin-top:6px; padding-top:10px; font-size:15px; font-weight:800; }
+
+.inv-footer{ margin-top:46px; }
+.inv-payment{ font-size:12px; border-top:1px solid var(--line); padding-top:14px; margin-bottom:18px; }
+.inv-payment .pay-label{ font-size:10px; text-transform:uppercase; letter-spacing:.07em; color:#999; font-weight:700; margin-bottom:6px;}
+.inv-companyfooter{ font-size:10.5px; color:#999; text-align:center; border-top:1px solid var(--line); padding-top:12px; }
+.inv-companyfooter span{ margin:0 6px; }
+
+.empty-state{ color:#bbb; font-style:italic; }
+
+/* ---------- Toasts ---------- */
+.toast-container{ position:fixed; bottom:20px; right:20px; display:flex; flex-direction:column; gap:8px; z-index:200; max-width:340px; }
+.toast{
+  background:#111; color:#fff; padding:12px 16px; border-radius:4px; font-size:13px;
+  box-shadow:0 8px 24px rgba(0,0,0,.25); animation: toast-in .18s ease;
+}
+.toast.error{ background: var(--danger); }
+.toast.success{ background: var(--success); }
+@keyframes toast-in{ from{ transform:translateY(8px); opacity:0; } to{ transform:translateY(0); opacity:1; } }
+
+/* ---------- Modal ---------- */
+.modal-overlay{
+  position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; z-index:100; padding:20px;
+}
+.modal-overlay[hidden]{ display:none; }
+.modal{ background:#fff; border-radius:6px; width:100%; max-width:560px; max-height:85vh; overflow-y:auto; padding:24px; }
+.modal h2{ font-size:16px; margin-bottom:4px; }
+.modal p.desc{ font-size:12.5px; color:var(--muted); margin:0 0 14px; }
+.modal textarea{ min-height:220px; font-family:var(--mono); font-size:12px; }
+.modal .modal-actions{ display:flex; justify-content:flex-end; gap:8px; margin-top:16px; }
+.modal .modal-close{ position:absolute; }
+.modal-header{ display:flex; justify-content:space-between; align-items:flex-start; }
+
+/* ---------- Print ---------- */
+@media print{
+  body{ background:#fff; }
+  .no-print{ display:none !important; }
+  .layout{ display:block; padding:0; }
+  #invoicePreviewWrapper{ display:block; padding:0; overflow:visible; justify-content:flex-start; }
+  #invoicePreview.a4{
+    box-shadow:none; width:auto; min-height:auto; margin:0; padding:0;
+  }
+  @page{ size: A4 portrait; margin: 16mm 15mm; }
+}
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     TOPBAR
+     ============================================================ -->
+<div class="topbar no-print">
+  <div class="brand">
+    <span class="logo-text">Lachbox</span>
+    <span class="subtitle">Facturatietool</span>
+  </div>
+  <div class="actions">
+    <button class="btn secondary" id="btnImport">Gegevens importeren</button>
+    <button class="btn secondary" id="btnNewInvoice">Nieuwe factuur</button>
+  </div>
+</div>
+
+<!-- ============================================================
+     MAIN LAYOUT
+     ============================================================ -->
+<main class="layout">
+
+  <!-- ---------------- FORM PANEL ---------------- -->
+  <section class="form-panel no-print" id="formPanel">
+
+    <!-- Klantgegevens -->
+    <div class="section">
+      <div class="section-title">Klantgegevens</div>
+      <div class="field-row">
+        <div class="field">
+          <label for="cust_company">Bedrijfsnaam / organisatie</label>
+          <input type="text" id="cust_company" placeholder="bijv. Tennisvereniging Sambeek">
+        </div>
+        <div class="field">
+          <label for="cust_contactPerson">Contactpersoon (t.n.v.)</label>
+          <input type="text" id="cust_contactPerson" placeholder="bijv. Stef Jacobs">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="cust_firstName">Voornaam</label>
+          <input type="text" id="cust_firstName">
+        </div>
+        <div class="field">
+          <label for="cust_lastName">Achternaam</label>
+          <input type="text" id="cust_lastName">
+        </div>
+      </div>
+      <div class="field-row cols-3">
+        <div class="field" style="grid-column:span 2;">
+          <label for="cust_street">Straat</label>
+          <input type="text" id="cust_street">
+        </div>
+        <div class="field">
+          <label for="cust_houseNumber">Huisnr.</label>
+          <input type="text" id="cust_houseNumber">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="cust_postalCode">Postcode</label>
+          <input type="text" id="cust_postalCode" placeholder="1234 AB">
+        </div>
+        <div class="field">
+          <label for="cust_city">Plaats</label>
+          <input type="text" id="cust_city">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="cust_country">Land</label>
+          <input type="text" id="cust_country" placeholder="Nederland">
+        </div>
+        <div class="field">
+          <label for="cust_email">E-mailadres</label>
+          <input type="email" id="cust_email">
+        </div>
+      </div>
+      <div class="field">
+        <label for="cust_phone">Telefoonnummer</label>
+        <input type="text" id="cust_phone">
+      </div>
+    </div>
+
+    <!-- Evenementgegevens -->
+    <div class="section">
+      <div class="section-title">Evenementgegevens</div>
+      <div class="field-row">
+        <div class="field">
+          <label for="event_date">Datum evenement</label>
+          <input type="date" id="event_date">
+        </div>
+        <div class="field">
+          <label for="event_type">Type evenement</label>
+          <input type="text" id="event_type" placeholder="bijv. Bruiloft">
+        </div>
+      </div>
+      <div class="field">
+        <label for="event_location">Locatie evenement</label>
+        <input type="text" id="event_location">
+      </div>
+      <div class="field">
+        <label for="event_reference">Offertenummer / referentie</label>
+        <input type="text" id="event_reference" placeholder="bijv. OFF-2026-014">
+      </div>
+      <div class="field">
+        <label for="event_note">Interne notitie <span style="font-weight:400; color:#aaa;">(verschijnt niet op de factuur)</span></label>
+        <textarea id="event_note" rows="2"></textarea>
+      </div>
+    </div>
+
+    <!-- Factuurgegevens -->
+    <div class="section">
+      <div class="section-title">Factuurgegevens</div>
+      <div class="field-row">
+        <div class="field">
+          <label for="inv_number">Factuurnummer</label>
+          <input type="text" id="inv_number">
+        </div>
+        <div class="field">
+          <label for="inv_date">Factuurdatum</label>
+          <input type="date" id="inv_date">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="inv_paymentTerm">Betaaltermijn (dagen)</label>
+          <input type="number" id="inv_paymentTerm" min="0" step="1">
+        </div>
+        <div class="field">
+          <label for="inv_dueDate">Vervaldatum</label>
+          <input type="date" id="inv_dueDate">
+        </div>
+      </div>
+      <div class="hint" id="invoiceNumberHint" style="margin-bottom:4px;"></div>
+    </div>
+
+    <!-- Pakket & regels -->
+    <div class="section">
+      <div class="section-title">Pakket &amp; factuurregels</div>
+
+      <div class="package-select">
+        <label for="packageSelect">Lachbox-pakket</label>
+        <select id="packageSelect">
+          <option value="">— Geen pakket / handmatig —</option>
+        </select>
+      </div>
+
+      <div class="lines-list" id="linesList"></div>
+
+      <div class="add-line-buttons">
+        <button class="btn secondary small" id="btnAddLine">+ Regel toevoegen</button>
+        <button class="btn secondary small" id="btnAddDiscount">+ Korting toevoegen</button>
+      </div>
+    </div>
+
+    <!-- Bedrijfsinstellingen (uitklapbaar, aanpasbaar) -->
+    <div class="section">
+      <details class="settings" id="companySettingsDetails">
+        <summary>Bedrijfsgegevens &amp; instellingen aanpassen</summary>
+        <div class="field-row">
+          <div class="field">
+            <label for="set_name">Bedrijfsnaam</label>
+            <input type="text" id="set_name">
+          </div>
+          <div class="field">
+            <label for="set_kvk">KvK-nummer</label>
+            <input type="text" id="set_kvk">
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="set_street">Straat + huisnr.</label>
+            <input type="text" id="set_street">
+          </div>
+          <div class="field">
+            <label for="set_city">Postcode + plaats</label>
+            <input type="text" id="set_city">
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="set_vat">BTW-nummer</label>
+            <input type="text" id="set_vat">
+          </div>
+          <div class="field">
+            <label for="set_bank">Bank</label>
+            <input type="text" id="set_bank">
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="set_iban">IBAN</label>
+            <input type="text" id="set_iban">
+          </div>
+          <div class="field">
+            <label for="set_defaultTerm">Standaard betaaltermijn (dagen)</label>
+            <input type="number" id="set_defaultTerm" min="0" step="1">
+          </div>
+        </div>
+        <div class="field">
+          <label for="set_email">E-mailadres</label>
+          <input type="email" id="set_email">
+        </div>
+        <button class="btn secondary small" id="btnResetSettings" style="margin-top:4px;">Terugzetten naar standaardgegevens</button>
+      </details>
+    </div>
+
+  </section>
+
+  <!-- ---------------- PREVIEW PANEL ---------------- -->
+  <section class="preview-panel">
+
+    <div class="preview-toolbar no-print">
+      <div class="filename-preview">Bestandsnaam: <strong id="filenamePreview">Factuur.pdf</strong></div>
+      <div class="actions">
+        <button class="btn secondary" id="btnSaveDraft">Concept opslaan</button>
+        <button class="btn secondary" id="btnFinalize">Factuur afronden</button>
+        <button class="btn primary" id="btnPrint">Opslaan als PDF / Print</button>
+      </div>
+    </div>
+
+    <div id="invoicePreviewWrapper">
+      <div id="invoicePreview" class="a4"><!-- wordt gevuld door renderInvoice() --></div>
+    </div>
+
+  </section>
+
+</main>
+
+<!-- ============================================================
+     IMPORT MODAL
+     ============================================================ -->
+<div class="modal-overlay no-print" id="importModal" hidden>
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <h2>Gegevens importeren</h2>
+        <p class="desc">Plak hieronder JSON-gegevens vanuit een offerte of boeking. Herkende velden worden automatisch ingevuld.</p>
+      </div>
+    </div>
+    <textarea id="importTextarea" placeholder='{
+  "customer": { "company": "Tennisvereniging Sambeek", "contactPerson": "Stef Jacobs", ... },
+  "event": { "date": "2026-09-20", "location": "Sambeek" },
+  "order": { "package": "premium" }
+}'></textarea>
+    <div class="modal-actions">
+      <button class="btn secondary" id="btnImportCancel">Annuleren</button>
+      <button class="btn primary" id="btnImportApply">Gegevens toepassen</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     CONFIRM MODAL (generiek, voor "Nieuwe factuur" bevestiging)
+     ============================================================ -->
+<div class="modal-overlay no-print" id="confirmModal" hidden>
+  <div class="modal" style="max-width:420px;">
+    <h2 id="confirmTitle">Weet je het zeker?</h2>
+    <p class="desc" id="confirmMessage"></p>
+    <div class="modal-actions">
+      <button class="btn secondary" id="btnConfirmCancel">Annuleren</button>
+      <button class="btn danger" id="btnConfirmOk">Doorgaan</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container no-print" id="toastContainer"></div>
+
+<script>
+(function(){
+"use strict";
+
+/* ============================================================
+   CONFIG
+   Alle bedrijfsgegevens, pakketten en standaardwaarden staan
+   hier gebundeld zodat ze later eenvoudig aangepast kunnen
+   worden zonder de rest van de code te hoeven doorzoeken.
+   ============================================================ */
+
+const CONFIG = {
+  company: {
+    name: "Lachbox",
+    street: "Baarskampstraat 49",
+    city: "5995 AT Kessel",
+    country: "Nederland",
+    bankName: "Revolut Business",
+    iban: "NL65REVO3992711382",
+    kvk: "98646222",
+    vatNumber: "868583078B01",
+    email: "info@lachbox.nl",
+    defaultPaymentTermDays: 14,
+    logoUrl: "" // optioneel: url of data-uri naar het Lachbox-logo. Leeg = tekst-logo.
+  },
+
+  // Lachbox-pakketten. Prijzen zijn standaard inclusief BTW.
+  packages: {
+    basis:    { name: "Basis pakket",    price: 375, vatRate: 21, priceMode: "incl" },
+    premium:  { name: "Premium pakket",  price: 425, vatRate: 21, priceMode: "incl" },
+    deluxe:   { name: "Deluxe pakket",   price: 525, vatRate: 21, priceMode: "incl" },
+    maatwerk: { name: "Maatwerk",        price: 0,   vatRate: 21, priceMode: "incl" }
+  },
+
+  // Beschikbare BTW-tarieven in de dropdown. "custom" laat de gebruiker
+  // een eigen percentage invullen.
+  vatRates: [0, 9, 21],
+  defaultVatRate: 21,
+
+  invoiceNumberPrefix: "LB"
+};
+
+const STORAGE_KEYS = {
+  counter: "lachbox_invoice_counter",
+  draft: "lachbox_draft_invoice",
+  companySettings: "lachbox_company_settings",
+  vatModePref: "lachbox_vat_mode_pref"
+};
+
+
+/* ============================================================
+   STATE
+   Eén centraal state-object. Alle rendering leest hieruit,
+   alle formuliervelden schrijven hierin.
+   ============================================================ */
+
+let state = null; // wordt gevuld door createEmptyState() of loadDraft()
+let companySettings = null; // actieve (aanpasbare) bedrijfsgegevens
+let draftSaveTimer = null;
+let isFinalized = false; // voorkomt dat het factuurnummer per ongeluk dubbel verhoogd wordt binnen 1 sessie
+
+function uid(){
+  return "l" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+}
+
+function createEmptyLine(type){
+  if (type === "discount"){
+    return {
+      id: uid(),
+      type: "discount",
+      description: "Korting",
+      subtext: "",
+      discountMode: "percentage", // "percentage" | "fixed"
+      discountValue: 10,
+      priceMode: "incl", // alleen relevant bij discountMode = fixed
+      vatRate: CONFIG.defaultVatRate
+    };
+  }
+  return {
+    id: uid(),
+    type: "item",
+    description: "",
+    subtext: "",
+    qty: 1,
+    price: 0,
+    priceMode: loadVatModePref(),
+    vatRate: CONFIG.defaultVatRate
+  };
+}
+
+function createEmptyState(){
+  const today = new Date();
+  const term = companySettings.defaultPaymentTermDays;
+  return {
+    customer: {
+      company: "", firstName: "", lastName: "", contactPerson: "",
+      street: "", houseNumber: "", postalCode: "", city: "", country: "Nederland",
+      email: "", phone: ""
+    },
+    event: {
+      date: "", location: "", type: "", reference: "", note: ""
+    },
+    invoice: {
+      number: "",           // provisorisch nummer, wordt bij init gevuld
+      date: formatDateInputValue(today),
+      paymentTermDays: term,
+      dueDate: formatDateInputValue(addDays(today, term))
+    },
+    packageKey: "",
+    lines: []
+  };
+}
+
+
+/* ============================================================
+   STORAGE
+   Alle localStorage-interactie is hier gebundeld.
+   ============================================================ */
+
+function loadJSON(key, fallback){
+  try{
+    const raw = localStorage.getItem(key);
+    if (!raw) return fallback;
+    return JSON.parse(raw);
+  }catch(e){
+    console.warn("Kon " + key + " niet laden uit localStorage:", e);
+    return fallback;
+  }
+}
+
+function saveJSON(key, value){
+  try{
+    localStorage.setItem(key, JSON.stringify(value));
+  }catch(e){
+    console.warn("Kon " + key + " niet opslaan in localStorage:", e);
+  }
+}
+
+function loadCompanySettings(){
+  const saved = loadJSON(STORAGE_KEYS.companySettings, null);
+  return Object.assign({}, CONFIG.company, saved || {});
+}
+
+function saveCompanySettings(){
+  saveJSON(STORAGE_KEYS.companySettings, companySettings);
+}
+
+function loadInvoiceCounter(){
+  return loadJSON(STORAGE_KEYS.counter, { year: new Date().getFullYear(), lastNumber: 0 });
+}
+
+function saveInvoiceCounter(counter){
+  saveJSON(STORAGE_KEYS.counter, counter);
+}
+
+function loadVatModePref(){
+  return loadJSON(STORAGE_KEYS.vatModePref, "incl");
+}
+
+function saveVatModePref(mode){
+  saveJSON(STORAGE_KEYS.vatModePref, mode);
+}
+
+function saveDraft(){
+  saveJSON(STORAGE_KEYS.draft, state);
+}
+
+function scheduleDraftSave(){
+  if (draftSaveTimer) clearTimeout(draftSaveTimer);
+  draftSaveTimer = setTimeout(saveDraft, 400);
+}
+
+function loadDraft(){
+  return loadJSON(STORAGE_KEYS.draft, null);
+}
+
+function clearDraft(){
+  localStorage.removeItem(STORAGE_KEYS.draft);
+}
+
+function draftHasContent(s){
+  if (!s) return false;
+  const c = s.customer;
+  const hasCustomer = !!(c.company || c.firstName || c.lastName || c.contactPerson || c.email);
+  const hasLines = s.lines && s.lines.some(l => l.description && l.description.trim().length > 0);
+  return hasCustomer || hasLines;
+}
+
+
+/* ============================================================
+   MONEY / DATE HELPERS
+   ============================================================ */
+
+const currencyFormatter = new Intl.NumberFormat("nl-NL", { style: "currency", currency: "EUR" });
+
+function roundMoney(n){
+  // Voorkomt klassieke floating-point afrondfouten (bv. 1.005 -> 1.00)
+  // door via een kleine epsilon af te ronden op hele centen.
+  return Math.round((n + Number.EPSILON) * 100) / 100;
+}
+
+function formatCurrency(n){
+  if (!isFinite(n)) n = 0;
+  return currencyFormatter.format(roundMoney(n));
+}
+
+function pad2(n){ return String(n).padStart(2, "0"); }
+
+function formatDateDisplay(dateStr){
+  if (!dateStr) return "";
+  const d = parseDateInputValue(dateStr);
+  if (!d) return "";
+  return `${pad2(d.getDate())}-${pad2(d.getMonth() + 1)}-${d.getFullYear()}`;
+}
+
+function formatDateInputValue(d){
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
+function parseDateInputValue(str){
+  // Verwacht "YYYY-MM-DD" (native <input type="date"> formaat)
+  if (!str) return null;
+  const parts = str.split("-");
+  if (parts.length !== 3) return null;
+  const y = parseInt(parts[0], 10), m = parseInt(parts[1], 10), d = parseInt(parts[2], 10);
+  if (!y || !m || !d) return null;
+  return new Date(y, m - 1, d);
+}
+
+function addDays(date, days){
+  const d = new Date(date);
+  d.setDate(d.getDate() + (parseInt(days, 10) || 0));
+  return d;
+}
+
+
+/* ============================================================
+   INVOICE CALCULATIONS
+   Alle BTW- en totaalberekeningen komen hier samen.
+   Bedragen worden per regel afgerond op hele centen; dat is de
+   in Nederland gebruikelijke methode en voorkomt cumulatieve
+   afrondverschillen op de eindtotalen.
+   ============================================================ */
+
+function calcAmountsFromUnit(unitPrice, qty, priceMode, vatRate){
+  const q = Number(qty) || 0;
+  const rate = Number(vatRate) || 0;
+  let unitExcl, unitIncl;
+
+  if (priceMode === "excl"){
+    unitExcl = unitPrice;
+    unitIncl = unitPrice * (1 + rate / 100);
+  } else {
+    unitIncl = unitPrice;
+    unitExcl = rate !== -100 ? unitPrice / (1 + rate / 100) : 0;
+  }
+
+  const exclAmount = roundMoney(unitExcl * q);
+  const inclAmount = roundMoney(unitIncl * q);
+  const vatAmount = roundMoney(inclAmount - exclAmount);
+
+  return { exclAmount, inclAmount, vatAmount };
+}
+
+// Berekent de verrijkte regels + totalen voor het volledige factuurobject.
+// Retourneert een nieuw object; muteert de state niet.
+function calculateInvoice(inv){
+  const itemLines = inv.lines.filter(l => l.type === "item");
+  const discountLines = inv.lines.filter(l => l.type === "discount");
+
+  // Subtotaal (excl. BTW) van alle normale regels — basis voor % kortingen.
+  const itemSubtotalExcl = itemLines.reduce((sum, l) => {
+    const a = calcAmountsFromUnit(Number(l.price) || 0, Number(l.qty) || 0, l.priceMode, l.vatRate);
+    return sum + a.exclAmount;
+  }, 0);
+
+  const computedLines = inv.lines.map(line => {
+    if (line.type === "item"){
+      const a = calcAmountsFromUnit(Number(line.price) || 0, Number(line.qty) || 0, line.priceMode, line.vatRate);
+      return Object.assign({}, line, a);
+    }
+    // Kortingsregel
+    if (line.discountMode === "percentage"){
+      const pct = Number(line.discountValue) || 0;
+      const exclAmount = roundMoney(-(itemSubtotalExcl * pct / 100));
+      const rate = Number(line.vatRate) || 0;
+      const inclAmount = roundMoney(exclAmount * (1 + rate / 100));
+      const vatAmount = roundMoney(inclAmount - exclAmount);
+      return Object.assign({}, line, { exclAmount, inclAmount, vatAmount });
+    }
+    // Vast bedrag korting
+    const value = Math.abs(Number(line.discountValue) || 0);
+    const a = calcAmountsFromUnit(-value, 1, line.priceMode, line.vatRate);
+    return Object.assign({}, line, a);
+  });
+
+  const totalExcl = roundMoney(computedLines.reduce((sum, l) => sum + l.exclAmount, 0));
+  const totalVat = roundMoney(computedLines.reduce((sum, l) => sum + l.vatAmount, 0));
+  const totalIncl = roundMoney(totalExcl + totalVat);
+
+  // BTW-opbouw per tarief, voor het "BTW 21% over € ..." blok onderaan de factuur.
+  const vatBreakdownMap = {};
+  computedLines.forEach(l => {
+    const rate = Number(l.vatRate) || 0;
+    if (!vatBreakdownMap[rate]) vatBreakdownMap[rate] = { rate, exclBase: 0, vatAmount: 0 };
+    vatBreakdownMap[rate].exclBase = roundMoney(vatBreakdownMap[rate].exclBase + l.exclAmount);
+    vatBreakdownMap[rate].vatAmount = roundMoney(vatBreakdownMap[rate].vatAmount + l.vatAmount);
+  });
+  const vatBreakdown = Object.values(vatBreakdownMap).sort((a, b) => b.rate - a.rate);
+
+  return {
+    lines: computedLines,
+    itemSubtotalExcl: roundMoney(itemSubtotalExcl),
+    totalExcl, totalVat, totalIncl,
+    vatBreakdown
+  };
+}
+
+
+/* ============================================================
+   VALIDATION
+   ============================================================ */
+
+function validateInvoice(){
+  const errors = [];
+  const c = state.customer, inv = state.invoice;
+
+  const hasCustomerName = !!(c.company.trim() || c.firstName.trim() || c.lastName.trim() || c.contactPerson.trim());
+  if (!hasCustomerName){
+    errors.push({ field: "cust_company", message: "Vul een klantnaam of bedrijfsnaam in." });
+  }
+  if (!inv.number || !inv.number.trim()){
+    errors.push({ field: "inv_number", message: "Factuurnummer ontbreekt." });
+  }
+  if (!inv.date){
+    errors.push({ field: "inv_date", message: "Factuurdatum ontbreekt." });
+  }
+  if (!state.lines || state.lines.filter(l => l.type === "item").length === 0){
+    errors.push({ field: null, message: "Voeg minimaal één factuurregel toe." });
+  }
+
+  state.lines.forEach((l, idx) => {
+    if (l.type === "item"){
+      if (!l.description || !l.description.trim()){
+        errors.push({ field: "line_" + l.id + "_description", message: `Regel ${idx + 1}: omschrijving ontbreekt.` });
+      }
+      if (isNaN(Number(l.price))){
+        errors.push({ field: "line_" + l.id + "_price", message: `Regel ${idx + 1}: ongeldig bedrag.` });
+      }
+      if (isNaN(Number(l.qty)) || Number(l.qty) <= 0){
+        errors.push({ field: "line_" + l.id + "_qty", message: `Regel ${idx + 1}: ongeldig aantal.` });
+      }
+    } else {
+      if (isNaN(Number(l.discountValue))){
+        errors.push({ field: "line_" + l.id + "_discountValue", message: `Korting: ongeldige waarde.` });
+      }
+    }
+    if (isNaN(Number(l.vatRate)) || Number(l.vatRate) < 0){
+      errors.push({ field: "line_" + l.id + "_vatRate", message: `Regel ${idx + 1}: ongeldig BTW-percentage.` });
+    }
+  });
+
+  return errors;
+}
+
+function clearFieldErrors(){
+  document.querySelectorAll(".field-error").forEach(el => el.classList.remove("field-error"));
+}
+
+function highlightErrors(errors){
+  clearFieldErrors();
+  errors.forEach(err => {
+    if (!err.field) return;
+    const el = document.getElementById(err.field) || document.querySelector(`[data-field-id="${err.field}"]`);
+    if (el) el.classList.add("field-error");
+  });
+}
+
+
+/* ============================================================
+   TOAST NOTIFICATIONS
+   ============================================================ */
+
+function showToast(message, type){
+  const container = document.getElementById("toastContainer");
+  const toast = document.createElement("div");
+  toast.className = "toast" + (type ? " " + type : "");
+  toast.textContent = message;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.style.opacity = "0";
+    toast.style.transition = "opacity .25s ease";
+    setTimeout(() => toast.remove(), 260);
+  }, 3200);
+}
+
+function showValidationErrors(errors){
+  highlightErrors(errors);
+  const msg = errors.length === 1
+    ? errors[0].message
+    : `${errors.length} controleer de volgende punten: ${errors.map(e => e.message).join(" ")}`;
+  showToast(msg, "error");
+}
+
+
+/* ============================================================
+   INVOICE NUMBERING
+   ============================================================ */
+
+function generateProvisionalInvoiceNumber(){
+  const counter = loadInvoiceCounter();
+  const year = new Date().getFullYear();
+  const nextSeq = (counter.year === year) ? counter.lastNumber + 1 : 1;
+  return formatInvoiceNumber(year, nextSeq);
+}
+
+function formatInvoiceNumber(year, seq){
+  return `${CONFIG.invoiceNumberPrefix}-${year}-${String(seq).padStart(3, "0")}`;
+}
+
+function parseInvoiceNumber(numberStr){
+  const re = new RegExp(`^${CONFIG.invoiceNumberPrefix}-(\\d{4})-(\\d+)$`);
+  const m = (numberStr || "").trim().match(re);
+  if (!m) return null;
+  return { year: parseInt(m[1], 10), seq: parseInt(m[2], 10) };
+}
+
+// Legt het huidige factuurnummer definitief vast in de teller (localStorage).
+// Wordt alleen aangeroepen bij expliciete gebruikersactie ("Factuur afronden"),
+// nooit automatisch bij laden/verversen van de pagina.
+function commitInvoiceNumber(numberStr){
+  const parsed = parseInvoiceNumber(numberStr);
+  if (!parsed) return; // handmatig/afwijkend nummer: teller blijft ongemoeid
+  const counter = loadInvoiceCounter();
+  const currentYear = new Date().getFullYear();
+  let newCounter;
+  if (parsed.year === counter.year){
+    newCounter = { year: counter.year, lastNumber: Math.max(counter.lastNumber, parsed.seq) };
+  } else if (parsed.year >= currentYear) {
+    newCounter = { year: parsed.year, lastNumber: parsed.seq };
+  } else {
+    newCounter = counter; // ouder jaartal: teller niet aanpassen
+  }
+  saveInvoiceCounter(newCounter);
+}
+
+
+/* ============================================================
+   IMPORT
+   Modulair opgezet: importInvoiceData() accepteert een gewoon
+   JS-object. importFromJSON() is een dunne laag daaromheen die
+   JSON-tekst parsed. Zo kan dit later hergebruikt worden om
+   gegevens rechtstreeks vanuit lachbox.nl te ontvangen (bv. via
+   postMessage of een API-call) zonder de kernlogica te wijzigen.
+   ============================================================ */
+
+function importInvoiceData(data){
+  if (!data || typeof data !== "object") throw new Error("Ongeldige data.");
+
+  const c = data.customer || {};
+  const e = data.event || {};
+  const o = data.order || {};
+
+  if (c.company != null) state.customer.company = String(c.company);
+  if (c.firstName != null) state.customer.firstName = String(c.firstName);
+  if (c.lastName != null) state.customer.lastName = String(c.lastName);
+  if (c.contactPerson != null) state.customer.contactPerson = String(c.contactPerson);
+  if (c.street != null) state.customer.street = String(c.street);
+  if (c.houseNumber != null) state.customer.houseNumber = String(c.houseNumber);
+  if (c.postalCode != null) state.customer.postalCode = String(c.postalCode);
+  if (c.city != null) state.customer.city = String(c.city);
+  if (c.country != null) state.customer.country = String(c.country);
+  if (c.email != null) state.customer.email = String(c.email);
+  if (c.phone != null) state.customer.phone = String(c.phone);
+
+  if (e.date != null) state.event.date = String(e.date);
+  if (e.location != null) state.event.location = String(e.location);
+  if (e.type != null) state.event.type = String(e.type);
+  if (e.reference != null) state.event.reference = String(e.reference);
+
+  if (o.package != null && CONFIG.packages[o.package]){
+    applyPackageToState(String(o.package));
+  }
+
+  scheduleDraftSave();
+  populateFormFromState();
+  renderAll();
+}
+
+function importFromJSON(jsonText){
+  let data;
+  try{
+    data = JSON.parse(jsonText);
+  }catch(e){
+    throw new Error("Ongeldige JSON: " + e.message);
+  }
+  importInvoiceData(data);
+}
+
+
+/* ============================================================
+   PACKAGE HANDLING
+   ============================================================ */
+
+function applyPackageToState(pkgKey){
+  state.packageKey = pkgKey;
+  if (!pkgKey || !CONFIG.packages[pkgKey]) return;
+  const pkg = CONFIG.packages[pkgKey];
+
+  const existingIdx = state.lines.findIndex(l => l.isPackageLine);
+  const line = {
+    id: existingIdx >= 0 ? state.lines[existingIdx].id : uid(),
+    type: "item",
+    isPackageLine: true,
+    description: pkg.name,
+    subtext: "",
+    qty: 1,
+    price: pkg.price,
+    priceMode: pkg.priceMode,
+    vatRate: pkg.vatRate
+  };
+  if (existingIdx >= 0){
+    state.lines[existingIdx] = line;
+  } else {
+    state.lines.unshift(line);
+  }
+}
+
+
+/* ============================================================
+   FORM HANDLING
+   ============================================================ */
+
+function el(id){ return document.getElementById(id); }
+
+function bindSimple(id, path, opts){
+  opts = opts || {};
+  const input = el(id);
+  input.addEventListener("input", () => {
+    let val = input.value;
+    if (opts.number) val = val === "" ? "" : Number(val);
+    setPath(state, path, val);
+    if (opts.onChange) opts.onChange(val);
+    scheduleDraftSave();
+    renderAll();
+  });
+}
+
+function setPath(obj, path, val){
+  const parts = path.split(".");
+  let cur = obj;
+  for (let i = 0; i < parts.length - 1; i++) cur = cur[parts[i]];
+  cur[parts[parts.length - 1]] = val;
+}
+
+function getPath(obj, path){
+  return path.split(".").reduce((cur, p) => (cur == null ? cur : cur[p]), obj);
+}
+
+function populatePackageDropdown(){
+  const select = el("packageSelect");
+  Object.keys(CONFIG.packages).forEach(key => {
+    const opt = document.createElement("option");
+    opt.value = key;
+    opt.textContent = `${CONFIG.packages[key].name} — ${formatCurrency(CONFIG.packages[key].price)}`;
+    select.appendChild(opt);
+  });
+}
+
+function populateFormFromState(){
+  const c = state.customer, ev = state.event, inv = state.invoice;
+  el("cust_company").value = c.company;
+  el("cust_contactPerson").value = c.contactPerson;
+  el("cust_firstName").value = c.firstName;
+  el("cust_lastName").value = c.lastName;
+  el("cust_street").value = c.street;
+  el("cust_houseNumber").value = c.houseNumber;
+  el("cust_postalCode").value = c.postalCode;
+  el("cust_city").value = c.city;
+  el("cust_country").value = c.country;
+  el("cust_email").value = c.email;
+  el("cust_phone").value = c.phone;
+
+  el("event_date").value = ev.date;
+  el("event_type").value = ev.type;
+  el("event_location").value = ev.location;
+  el("event_reference").value = ev.reference;
+  el("event_note").value = ev.note;
+
+  el("inv_number").value = inv.number;
+  el("inv_date").value = inv.date;
+  el("inv_paymentTerm").value = inv.paymentTermDays;
+  el("inv_dueDate").value = inv.dueDate;
+
+  el("packageSelect").value = state.packageKey || "";
+
+  renderLineEditors();
+}
+
+function populateSettingsForm(){
+  el("set_name").value = companySettings.name;
+  el("set_street").value = companySettings.street;
+  el("set_city").value = companySettings.city;
+  el("set_kvk").value = companySettings.kvk;
+  el("set_vat").value = companySettings.vatNumber;
+  el("set_bank").value = companySettings.bankName;
+  el("set_iban").value = companySettings.iban;
+  el("set_defaultTerm").value = companySettings.defaultPaymentTermDays;
+  el("set_email").value = companySettings.email;
+}
+
+function attachStaticListeners(){
+  bindSimple("cust_company", "customer.company");
+  bindSimple("cust_contactPerson", "customer.contactPerson");
+  bindSimple("cust_firstName", "customer.firstName");
+  bindSimple("cust_lastName", "customer.lastName");
+  bindSimple("cust_street", "customer.street");
+  bindSimple("cust_houseNumber", "customer.houseNumber");
+  bindSimple("cust_postalCode", "customer.postalCode");
+  bindSimple("cust_city", "customer.city");
+  bindSimple("cust_country", "customer.country");
+  bindSimple("cust_email", "customer.email");
+  bindSimple("cust_phone", "customer.phone");
+
+  bindSimple("event_date", "event.date");
+  bindSimple("event_type", "event.type");
+  bindSimple("event_location", "event.location");
+  bindSimple("event_reference", "event.reference");
+  bindSimple("event_note", "event.note");
+
+  el("inv_number").addEventListener("input", () => {
+    state.invoice.number = el("inv_number").value;
+    scheduleDraftSave();
+    renderAll();
+  });
+
+  el("inv_date").addEventListener("input", () => {
+    state.invoice.date = el("inv_date").value;
+    recalcDueDate();
+    scheduleDraftSave();
+    renderAll();
+  });
+
+  el("inv_paymentTerm").addEventListener("input", () => {
+    state.invoice.paymentTermDays = Number(el("inv_paymentTerm").value) || 0;
+    recalcDueDate();
+    scheduleDraftSave();
+    renderAll();
+  });
+
+  el("inv_dueDate").addEventListener("input", () => {
+    state.invoice.dueDate = el("inv_dueDate").value;
+    scheduleDraftSave();
+    renderAll();
+  });
+
+  el("packageSelect").addEventListener("change", () => {
+    applyPackageToState(el("packageSelect").value);
+    scheduleDraftSave();
+    renderLineEditors();
+    renderAll();
+  });
+
+  el("btnAddLine").addEventListener("click", () => {
+    state.lines.push(createEmptyLine("item"));
+    scheduleDraftSave();
+    renderLineEditors();
+    renderAll();
+  });
+
+  el("btnAddDiscount").addEventListener("click", () => {
+    state.lines.push(createEmptyLine("discount"));
+    scheduleDraftSave();
+    renderLineEditors();
+    renderAll();
+  });
+
+  // Bedrijfsinstellingen
+  const settingsBindings = [
+    ["set_name", "name"], ["set_street", "street"], ["set_city", "city"],
+    ["set_kvk", "kvk"], ["set_vat", "vatNumber"], ["set_bank", "bankName"],
+    ["set_iban", "iban"], ["set_email", "email"]
+  ];
+  settingsBindings.forEach(([inputId, key]) => {
+    el(inputId).addEventListener("input", () => {
+      companySettings[key] = el(inputId).value;
+      saveCompanySettings();
+      renderAll();
+    });
+  });
+  el("set_defaultTerm").addEventListener("input", () => {
+    companySettings.defaultPaymentTermDays = Number(el("set_defaultTerm").value) || 0;
+    saveCompanySettings();
+  });
+  el("btnResetSettings").addEventListener("click", () => {
+    companySettings = Object.assign({}, CONFIG.company);
+    saveCompanySettings();
+    populateSettingsForm();
+    renderAll();
+    showToast("Bedrijfsgegevens teruggezet naar standaardwaarden.", "success");
+  });
+
+  el("btnNewInvoice").addEventListener("click", onNewInvoiceClick);
+  el("btnImport").addEventListener("click", openImportModal);
+  el("btnImportCancel").addEventListener("click", closeImportModal);
+  el("btnImportApply").addEventListener("click", onImportApply);
+  el("btnSaveDraft").addEventListener("click", onSaveDraftClick);
+  el("btnFinalize").addEventListener("click", onFinalizeClick);
+  el("btnPrint").addEventListener("click", handlePrint);
+}
+
+function recalcDueDate(){
+  const d = parseDateInputValue(state.invoice.date);
+  if (!d) return;
+  state.invoice.dueDate = formatDateInputValue(addDays(d, state.invoice.paymentTermDays));
+  el("inv_dueDate").value = state.invoice.dueDate;
+}
+
+
+/* ---------- Dynamische regel-editors ---------- */
+
+function renderLineEditors(){
+  const list = el("linesList");
+  list.innerHTML = "";
+
+  if (state.lines.length === 0){
+    const empty = document.createElement("div");
+    empty.className = "hint";
+    empty.textContent = "Nog geen factuurregels. Kies een pakket of voeg een regel toe.";
+    list.appendChild(empty);
+    return;
+  }
+
+  state.lines.forEach((line, index) => {
+    list.appendChild(buildLineCard(line, index));
+  });
+}
+
+function buildLineCard(line, index){
+  const card = document.createElement("div");
+  card.className = "line-card" + (line.type === "discount" ? " discount" : "");
+  card.dataset.lineId = line.id;
+
+  // Header met badge + acties
+  const head = document.createElement("div");
+  head.className = "line-card-head";
+  const badge = document.createElement("span");
+  badge.className = "line-type-badge";
+  badge.textContent = line.type === "discount" ? "Korting" : (line.isPackageLine ? "Pakket" : `Regel ${index + 1}`);
+  head.appendChild(badge);
+
+  const actions = document.createElement("div");
+  actions.className = "line-card-actions";
+
+  const dupBtn = document.createElement("button");
+  dupBtn.type = "button";
+  dupBtn.className = "icon-btn";
+  dupBtn.title = "Dupliceren";
+  dupBtn.textContent = "⧉";
+  dupBtn.addEventListener("click", () => duplicateLine(line.id));
+  actions.appendChild(dupBtn);
+
+  const delBtn = document.createElement("button");
+  delBtn.type = "button";
+  delBtn.className = "icon-btn";
+  delBtn.title = "Verwijderen";
+  delBtn.textContent = "✕";
+  delBtn.addEventListener("click", () => removeLine(line.id));
+  actions.appendChild(delBtn);
+
+  head.appendChild(actions);
+  card.appendChild(head);
+
+  // Omschrijving + subtekst
+  const descField = document.createElement("div");
+  descField.className = "field";
+  const descLabel = document.createElement("label");
+  descLabel.textContent = "Omschrijving";
+  const descInput = document.createElement("input");
+  descInput.type = "text";
+  descInput.id = "line_" + line.id + "_description";
+  descInput.value = line.description;
+  descInput.placeholder = line.type === "discount" ? "bijv. Seizoenskorting" : "bijv. Extra uur photobooth";
+  descInput.addEventListener("input", () => { line.description = descInput.value; scheduleDraftSave(); renderAll(); });
+  descField.appendChild(descLabel); descField.appendChild(descInput);
+  card.appendChild(descField);
+
+  const subField = document.createElement("div");
+  subField.className = "field";
+  const subLabel = document.createElement("label");
+  subLabel.textContent = "Subtekst (optioneel)";
+  const subInput = document.createElement("input");
+  subInput.type = "text";
+  subInput.value = line.subtext || "";
+  subInput.placeholder = "extra toelichting onder de omschrijving";
+  subInput.addEventListener("input", () => { line.subtext = subInput.value; scheduleDraftSave(); renderAll(); });
+  subField.appendChild(subLabel); subField.appendChild(subInput);
+  card.appendChild(subField);
+
+  const grid = document.createElement("div");
+  grid.className = "line-grid";
+
+  if (line.type === "item"){
+    grid.appendChild(buildNumberField("Aantal", "line_" + line.id + "_qty", line.qty, 1, v => { line.qty = v; }));
+    grid.appendChild(buildNumberField("Prijs (€)", "line_" + line.id + "_price", line.price, 0.01, v => { line.price = v; }));
+    grid.appendChild(buildVatModeToggle(line));
+    grid.appendChild(buildVatRateField(line));
+  } else {
+    grid.appendChild(buildDiscountModeField(line));
+    grid.appendChild(buildNumberField(
+      line.discountMode === "percentage" ? "Percentage (%)" : "Bedrag (€)",
+      "line_" + line.id + "_discountValue", line.discountValue, 0.01, v => { line.discountValue = v; }
+    ));
+    if (line.discountMode === "fixed"){
+      grid.appendChild(buildVatModeToggle(line));
+    } else {
+      const spacer = document.createElement("div"); grid.appendChild(spacer);
+    }
+    grid.appendChild(buildVatRateField(line));
+  }
+
+  card.appendChild(grid);
+
+  const amountRow = document.createElement("div");
+  amountRow.className = "amount-readout";
+  amountRow.dataset.role = "line-amount";
+  card.appendChild(amountRow);
+
+  return card;
+}
+
+function buildNumberField(labelText, id, value, step, onChange){
+  const field = document.createElement("div");
+  field.className = "field";
+  const label = document.createElement("label");
+  label.textContent = labelText;
+  const input = document.createElement("input");
+  input.type = "number";
+  input.step = step;
+  input.id = id;
+  input.value = value;
+  input.addEventListener("input", () => {
+    onChange(input.value === "" ? "" : Number(input.value));
+    scheduleDraftSave();
+    renderAll();
+  });
+  field.appendChild(label); field.appendChild(input);
+  return field;
+}
+
+function buildVatRateField(line){
+  const field = document.createElement("div");
+  field.className = "field";
+  const label = document.createElement("label");
+  label.textContent = "BTW %";
+  const select = document.createElement("select");
+  select.id = "line_" + line.id + "_vatRate";
+  const presetRates = CONFIG.vatRates.slice();
+  const isPreset = presetRates.includes(Number(line.vatRate));
+  presetRates.forEach(r => {
+    const opt = document.createElement("option");
+    opt.value = r; opt.textContent = r + "%";
+    if (Number(line.vatRate) === r) opt.selected = true;
+    select.appendChild(opt);
+  });
+  const customOpt = document.createElement("option");
+  customOpt.value = "custom";
+  customOpt.textContent = "Aangepast…";
+  if (!isPreset) customOpt.selected = true;
+  select.appendChild(customOpt);
+
+  field.appendChild(label); field.appendChild(select);
+
+  let customInput = null;
+  if (!isPreset){
+    customInput = document.createElement("input");
+    customInput.type = "number"; customInput.step = "0.1"; customInput.style.marginTop = "6px";
+    customInput.value = line.vatRate;
+    customInput.addEventListener("input", () => {
+      line.vatRate = Number(customInput.value) || 0;
+      scheduleDraftSave(); renderAll();
+    });
+    field.appendChild(customInput);
+  }
+
+  select.addEventListener("change", () => {
+    if (select.value === "custom"){
+      line.vatRate = line.vatRate || 0;
+      renderLineEditors();
+    } else {
+      line.vatRate = Number(select.value);
+    }
+    scheduleDraftSave();
+    renderLineEditors();
+    renderAll();
+  });
+
+  return field;
+}
+
+function buildVatModeToggle(line){
+  const field = document.createElement("div");
+  field.className = "field span-2";
+  const label = document.createElement("label");
+  label.textContent = "Prijs is";
+  const toggle = document.createElement("div");
+  toggle.className = "vat-mode-toggle";
+
+  const inclBtn = document.createElement("button");
+  inclBtn.type = "button"; inclBtn.textContent = "Incl. BTW";
+  inclBtn.className = line.priceMode === "incl" ? "active" : "";
+
+  const exclBtn = document.createElement("button");
+  exclBtn.type = "button"; exclBtn.textContent = "Excl. BTW";
+  exclBtn.className = line.priceMode === "excl" ? "active" : "";
+
+  inclBtn.addEventListener("click", () => { line.priceMode = "incl"; saveVatModePref("incl"); scheduleDraftSave(); renderLineEditors(); renderAll(); });
+  exclBtn.addEventListener("click", () => { line.priceMode = "excl"; saveVatModePref("excl"); scheduleDraftSave(); renderLineEditors(); renderAll(); });
+
+  toggle.appendChild(inclBtn); toggle.appendChild(exclBtn);
+  field.appendChild(label); field.appendChild(toggle);
+  return field;
+}
+
+function buildDiscountModeField(line){
+  const field = document.createElement("div");
+  field.className = "field";
+  const label = document.createElement("label");
+  label.textContent = "Type korting";
+  const select = document.createElement("select");
+  [["percentage", "Percentage (%)"], ["fixed", "Vast bedrag (€)"]].forEach(([val, txt]) => {
+    const opt = document.createElement("option");
+    opt.value = val; opt.textContent = txt;
+    if (line.discountMode === val) opt.selected = true;
+    select.appendChild(opt);
+  });
+  select.addEventListener("change", () => {
+    line.discountMode = select.value;
+    scheduleDraftSave();
+    renderLineEditors();
+    renderAll();
+  });
+  field.appendChild(label); field.appendChild(select);
+  return field;
+}
+
+function removeLine(id){
+  state.lines = state.lines.filter(l => l.id !== id);
+  scheduleDraftSave();
+  renderLineEditors();
+  renderAll();
+}
+
+function duplicateLine(id){
+  const idx = state.lines.findIndex(l => l.id === id);
+  if (idx < 0) return;
+  const copy = Object.assign({}, state.lines[idx], { id: uid(), isPackageLine: false });
+  state.lines.splice(idx + 1, 0, copy);
+  scheduleDraftSave();
+  renderLineEditors();
+  renderAll();
+}
+
+// Werkt alleen de "Bedrag"-uitlezing per regelkaart bij, zonder de hele
+// editor (en dus de focus van het actieve invoerveld) opnieuw op te bouwen.
+function updateLineAmountReadouts(calc){
+  calc.lines.forEach(l => {
+    const card = document.querySelector(`.line-card[data-line-id="${l.id}"] [data-role="line-amount"]`);
+    if (card) card.textContent = formatCurrency(l.inclAmount) + " (incl. BTW)";
+  });
+}
+
+
+/* ============================================================
+   RENDERING — Live A4 factuurpreview
+   Bouwt de preview met DOM-nodes en textContent (geen innerHTML
+   met ongefilterde gebruikersinput) zodat geïmporteerde of
+   ingevoerde tekst nooit als HTML/JS wordt geïnterpreteerd.
+   ============================================================ */
+
+function getCustomerAddressLines(c){
+  const lines = [];
+  if (c.company && c.company.trim()) lines.push(c.company.trim());
+
+  const personName = (c.contactPerson && c.contactPerson.trim())
+    || [c.firstName, c.lastName].filter(Boolean).join(" ").trim();
+  if (personName){
+    lines.push(c.company && c.company.trim() ? `t.n.v. ${personName}` : personName);
+  }
+
+  const streetLine = [c.street, c.houseNumber].filter(s => s && s.trim()).join(" ").trim();
+  if (streetLine) lines.push(streetLine);
+
+  const cityLine = [c.postalCode, c.city].filter(s => s && s.trim()).join(" ").trim();
+  if (cityLine) lines.push(cityLine);
+
+  if (c.country && c.country.trim() && c.country.trim().toLowerCase() !== "nederland"){
+    lines.push(c.country.trim());
+  }
+
+  return lines;
+}
+
+function makeEl(tag, className, text){
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text != null) node.textContent = text;
+  return node;
+}
+
+function renderInvoice(calc){
+  const root = el("invoicePreview");
+  root.innerHTML = "";
+  const c = state.customer, ev = state.event, inv = state.invoice;
+
+  /* ---- Header: logo + FACTUUR titel ---- */
+  const header = makeEl("div", "inv-header");
+
+  const logoBlock = makeEl("div", "inv-logo");
+  if (companySettings.logoUrl){
+    const img = document.createElement("img");
+    img.src = companySettings.logoUrl;
+    img.alt = companySettings.name;
+    logoBlock.appendChild(img);
+  } else {
+    logoBlock.appendChild(document.createTextNode(companySettings.name || "Lachbox"));
+    logoBlock.appendChild(makeEl("div", "tagline", "Photobooth verhuur"));
+  }
+  header.appendChild(logoBlock);
+
+  const titleBlock = makeEl("div", "inv-title");
+  titleBlock.appendChild(makeEl("h1", null, "FACTUUR"));
+  const metaLine = makeEl("div", "inv-meta-line");
+  const numB = document.createElement("b"); numB.textContent = inv.number || "—";
+  metaLine.appendChild(document.createTextNode("Factuurnr. "));
+  metaLine.appendChild(numB);
+  titleBlock.appendChild(metaLine);
+  const dateLine = makeEl("div", "inv-meta-line", `Datum: ${formatDateDisplay(inv.date) || "—"}`);
+  titleBlock.appendChild(dateLine);
+  header.appendChild(titleBlock);
+
+  root.appendChild(header);
+
+  /* ---- Partijen: klant + factuurmeta ---- */
+  const parties = makeEl("div", "inv-parties");
+
+  const toBlock = makeEl("div", "inv-block to");
+  toBlock.appendChild(makeEl("div", "block-label", "Factuur aan"));
+  const addrLines = getCustomerAddressLines(c);
+  if (addrLines.length === 0){
+    toBlock.appendChild(makeEl("div", "line empty-state", "Nog geen klantgegevens ingevuld"));
+  } else {
+    addrLines.forEach(t => toBlock.appendChild(makeEl("div", "line", t)));
+  }
+  parties.appendChild(toBlock);
+
+  const metaBlock = makeEl("div", "inv-block meta");
+  metaBlock.appendChild(makeEl("div", "block-label", "Factuurgegevens"));
+  const metaRows = [
+    ["Factuurdatum", formatDateDisplay(inv.date)],
+    ["Vervaldatum", formatDateDisplay(inv.dueDate)],
+    ["Betaaltermijn", inv.paymentTermDays ? `${inv.paymentTermDays} dagen` : ""]
+  ];
+  if (ev.reference && ev.reference.trim()) metaRows.push(["Referentie", ev.reference.trim()]);
+  metaRows.filter(([,v]) => v).forEach(([k, v]) => {
+    const row = makeEl("div", "meta-row");
+    row.appendChild(makeEl("span", "k", k));
+    row.appendChild(makeEl("span", "v", v));
+    metaBlock.appendChild(row);
+  });
+  parties.appendChild(metaBlock);
+
+  root.appendChild(parties);
+
+  /* ---- Evenementregel (optioneel) ---- */
+  const eventBits = [];
+  if (ev.type && ev.type.trim()) eventBits.push(ev.type.trim());
+  if (ev.date) eventBits.push(formatDateDisplay(ev.date));
+  if (ev.location && ev.location.trim()) eventBits.push(ev.location.trim());
+  if (eventBits.length > 0){
+    root.appendChild(makeEl("div", "inv-event-line", "Evenement: " + eventBits.join(" — ")));
+  }
+
+  /* ---- Regeltabel ---- */
+  const table = document.createElement("table");
+  table.className = "inv-table";
+  const thead = document.createElement("thead");
+  const headRow = document.createElement("tr");
+  [["Omschrijving", ""], ["BTW", "num"], ["Prijs", "num"], ["Bedrag", "num"]].forEach(([txt, cls]) => {
+    const th = document.createElement("th");
+    if (cls) th.className = cls;
+    th.textContent = txt;
+    headRow.appendChild(th);
+  });
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+  if (calc.lines.length === 0){
+    const tr = document.createElement("tr");
+    const td = document.createElement("td");
+    td.colSpan = 4; td.className = "empty-state"; td.textContent = "Nog geen factuurregels toegevoegd.";
+    tr.appendChild(td);
+    tbody.appendChild(tr);
+  } else {
+    calc.lines.forEach(l => {
+      const tr = document.createElement("tr");
+      if (l.type === "discount") tr.className = "discount-row";
+
+      const tdDesc = document.createElement("td");
+      const descMain = makeEl("div", "desc-main", l.description || (l.type === "discount" ? "Korting" : "—"));
+      tdDesc.appendChild(descMain);
+      if (l.subtext && l.subtext.trim()) tdDesc.appendChild(makeEl("div", "desc-sub", l.subtext.trim()));
+      if (l.type === "discount" && l.discountMode === "percentage"){
+        tdDesc.appendChild(makeEl("div", "desc-sub", `${l.discountValue}% korting`));
+      }
+      tr.appendChild(tdDesc);
+
+      const tdVat = document.createElement("td");
+      tdVat.className = "num";
+      tdVat.textContent = `${l.vatRate}%`;
+      tr.appendChild(tdVat);
+
+      const tdPrice = document.createElement("td");
+      tdPrice.className = "num";
+      if (l.type === "item"){
+        tdPrice.textContent = `${l.qty} × ${formatCurrency(l.price)}`;
+      } else if (l.discountMode === "percentage"){
+        tdPrice.textContent = "—";
+      } else {
+        tdPrice.textContent = formatCurrency(-Math.abs(Number(l.discountValue) || 0));
+      }
+      tr.appendChild(tdPrice);
+
+      const tdAmount = document.createElement("td");
+      tdAmount.className = "num";
+      tdAmount.textContent = formatCurrency(l.inclAmount);
+      tr.appendChild(tdAmount);
+
+      tbody.appendChild(tr);
+    });
+  }
+  table.appendChild(tbody);
+  root.appendChild(table);
+
+  /* ---- Totalen ---- */
+  const totalsWrap = makeEl("div", "inv-totals");
+  const box = makeEl("div", "totals-box");
+
+  const subRow = makeEl("div", "totals-row");
+  subRow.appendChild(makeEl("span", "k", "Subtotaal excl. BTW"));
+  subRow.appendChild(makeEl("span", "v", formatCurrency(calc.totalExcl)));
+  box.appendChild(subRow);
+
+  calc.vatBreakdown.forEach(v => {
+    if (v.vatAmount === 0 && v.exclBase === 0) return;
+    const row = makeEl("div", "totals-row");
+    row.appendChild(makeEl("span", "k", `BTW ${v.rate}% over ${formatCurrency(v.exclBase)}`));
+    row.appendChild(makeEl("span", "v", formatCurrency(v.vatAmount)));
+    box.appendChild(row);
+  });
+
+  const grandRow = makeEl("div", "totals-row grand");
+  grandRow.appendChild(makeEl("span", null, "Totaal"));
+  grandRow.appendChild(makeEl("span", null, formatCurrency(calc.totalIncl)));
+  box.appendChild(grandRow);
+
+  totalsWrap.appendChild(box);
+  root.appendChild(totalsWrap);
+
+  /* ---- Footer: betaalinstructie + bedrijfsgegevens ---- */
+  const footer = makeEl("div", "inv-footer");
+
+  const payment = makeEl("div", "inv-payment");
+  payment.appendChild(makeEl("div", "pay-label", "Betaalinstructie"));
+  payment.appendChild(makeEl("div", null, buildPaymentText()));
+  footer.appendChild(payment);
+
+  const companyFooter = makeEl("div", "inv-companyfooter");
+  const bits = [
+    companySettings.name,
+    [companySettings.street, companySettings.city].filter(Boolean).join(", "),
+    "KvK " + companySettings.kvk,
+    "BTW " + companySettings.vatNumber,
+    companySettings.iban
+  ].filter(Boolean);
+  bits.forEach((b, i) => {
+    if (i > 0) companyFooter.appendChild(document.createTextNode(" · "));
+    companyFooter.appendChild(document.createTextNode(b));
+  });
+  footer.appendChild(companyFooter);
+
+  root.appendChild(footer);
+}
+
+function buildPaymentText(){
+  const inv = state.invoice;
+  const term = inv.paymentTermDays || companySettings.defaultPaymentTermDays;
+  return `Gelieve binnen ${term} dagen te betalen op ${companySettings.iban} ten name van ${companySettings.name} onder vermelding van factuurnummer ${inv.number || "(nog geen nummer)"}.`;
+}
+
+function slugify(text){
+  return (text || "")
+    .normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-zA-Z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function updateFilenamePreview(){
+  const c = state.customer;
+  const customerName = c.company || [c.firstName, c.lastName].filter(Boolean).join(" ") || "Klant";
+  const filename = `Factuur_${state.invoice.number || "concept"}_${slugify(customerName)}.pdf`;
+  el("filenamePreview").textContent = filename;
+  return filename;
+}
+
+function renderAll(){
+  const calc = calculateInvoice(state);
+  renderInvoice(calc);
+  updateLineAmountReadouts(calc);
+  updateFilenamePreview();
+  updateInvoiceNumberHint();
+}
+
+function updateInvoiceNumberHint(){
+  const hint = el("invoiceNumberHint");
+  const parsed = parseInvoiceNumber(state.invoice.number);
+  if (!state.invoice.number){
+    hint.textContent = "";
+  } else if (parsed){
+    hint.textContent = isFinalized
+      ? "Dit nummer is vastgelegd."
+      : "Voorgesteld nummer — wordt pas vastgelegd bij 'Factuur afronden'.";
+  } else {
+    hint.textContent = "Afwijkend/handmatig nummer — de automatische teller wordt hierdoor niet aangepast.";
+  }
+}
+
+
+/* ============================================================
+   IMPORT MODAL HANDLING
+   ============================================================ */
+
+function openImportModal(){
+  el("importTextarea").value = "";
+  el("importModal").hidden = false;
+}
+function closeImportModal(){
+  el("importModal").hidden = true;
+}
+function onImportApply(){
+  try{
+    importFromJSON(el("importTextarea").value);
+    closeImportModal();
+    showToast("Gegevens geïmporteerd.", "success");
+  }catch(e){
+    showToast(e.message, "error");
+  }
+}
+
+
+/* ============================================================
+   CONFIRM MODAL (generiek)
+   ============================================================ */
+
+function askConfirm(title, message){
+  return new Promise(resolve => {
+    el("confirmTitle").textContent = title;
+    el("confirmMessage").textContent = message;
+    el("confirmModal").hidden = false;
+
+    function cleanup(result){
+      el("confirmModal").hidden = true;
+      okBtn.removeEventListener("click", onOk);
+      cancelBtn.removeEventListener("click", onCancel);
+      resolve(result);
+    }
+    const okBtn = el("btnConfirmOk");
+    const cancelBtn = el("btnConfirmCancel");
+    function onOk(){ cleanup(true); }
+    function onCancel(){ cleanup(false); }
+    okBtn.addEventListener("click", onOk);
+    cancelBtn.addEventListener("click", onCancel);
+  });
+}
+
+
+/* ============================================================
+   ACTION HANDLERS
+   ============================================================ */
+
+async function onNewInvoiceClick(){
+  if (draftHasContent(state)){
+    const ok = await askConfirm(
+      "Nieuwe factuur starten?",
+      "Er staan nog ingevulde gegevens. Deze gaan verloren als je doorgaat met een nieuwe factuur."
+    );
+    if (!ok) return;
+  }
+  clearDraft();
+  isFinalized = false;
+  state = createEmptyState();
+  state.invoice.number = generateProvisionalInvoiceNumber();
+  populateFormFromState();
+  renderAll();
+  showToast("Nieuwe factuur gestart.", "success");
+}
+
+function onSaveDraftClick(){
+  saveDraft();
+  showToast("Concept opgeslagen.", "success");
+}
+
+function onFinalizeClick(){
+  const errors = validateInvoice();
+  if (errors.length > 0){
+    showValidationErrors(errors);
+    return;
+  }
+  commitInvoiceNumber(state.invoice.number);
+  isFinalized = true;
+  saveDraft();
+  updateInvoiceNumberHint();
+  showToast(`Factuurnummer ${state.invoice.number} is vastgelegd.`, "success");
+}
+
+function handlePrint(){
+  const errors = validateInvoice();
+  if (errors.length > 0){
+    showValidationErrors(errors);
+    return;
+  }
+  const filename = updateFilenamePreview();
+  const originalTitle = document.title;
+  // Sommige browsers gebruiken document.title als voorgestelde bestandsnaam
+  // bij "Opslaan als PDF" in het printdialoogvenster.
+  document.title = filename.replace(/\.pdf$/i, "");
+  window.print();
+  setTimeout(() => { document.title = originalTitle; }, 500);
+}
+
+
+/* ============================================================
+   INIT
+   ============================================================ */
+
+function init(){
+  companySettings = loadCompanySettings();
+  populatePackageDropdown();
+  attachStaticListeners();
+  populateSettingsForm();
+
+  const draft = loadDraft();
+  if (draft){
+    state = draft;
+    isFinalized = false;
+    // Als het opgeslagen nummer nog een niet-vastgelegd voorstel is voor
+    // het huidige jaar/teller, houd het bij; anders alles gewoon tonen
+    // zoals opgeslagen. De teller wordt hier nooit verhoogd.
+    if (!state.invoice.number){
+      state.invoice.number = generateProvisionalInvoiceNumber();
+    }
+  } else {
+    state = createEmptyState();
+    state.invoice.number = generateProvisionalInvoiceNumber();
+  }
+
+  populateFormFromState();
+  renderAll();
+
+  window.addEventListener("beforeprint", () => {});
+  window.addEventListener("afterprint", () => {});
+}
+
+document.addEventListener("DOMContentLoaded", init);
+
+})();
+</script>
+</body>
+</html>
