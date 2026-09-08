@@ -41,20 +41,20 @@ h1,h2,h3,h4{ margin:0; font-weight:600; }
 button{ font-family:inherit; font-size:inherit; }
 input, select, textarea{
   font-family:inherit;
-  font-size:13px;
+  font-size:12.5px;
   color: var(--fg);
   background:#fff;
   border:1px solid #d6d6d6;
   border-radius: var(--radius);
-  padding:8px 10px;
+  padding:6px 8px;
   width:100%;
   outline:none;
   transition: border-color .12s ease;
 }
 input:focus, select:focus, textarea:focus{ border-color:#111; }
 input.field-error, select.field-error{ border-color: var(--danger); background:#fffaf9; }
-label{ display:block; font-size:12px; font-weight:600; letter-spacing:.02em; color:#333; margin-bottom:4px; }
-.hint{ font-size:11px; color:var(--muted); margin-top:3px; }
+label{ display:block; font-size:10.5px; font-weight:600; letter-spacing:.02em; color:#333; margin-bottom:2px; }
+.hint{ font-size:10.5px; color:var(--muted); margin-top:2px; }
 
 /* ---------- Topbar ---------- */
 .topbar{
@@ -118,28 +118,28 @@ label{ display:block; font-size:12px; font-weight:600; letter-spacing:.02em; col
 @media (max-width: 1100px){
   .form-panel{ position:static; max-height:none; }
 }
-.section{ padding:20px 22px; border-bottom:1px solid var(--line); }
+.section{ padding:13px 18px; border-bottom:1px solid var(--line); }
 .section:last-child{ border-bottom:none; }
 .section-title{
-  font-size:12px; text-transform:uppercase; letter-spacing:.08em;
-  color:#888; font-weight:700; margin-bottom:14px;
+  font-size:11px; text-transform:uppercase; letter-spacing:.08em;
+  color:#888; font-weight:700; margin-bottom:9px;
   display:flex; align-items:center; justify-content:space-between;
 }
-.field-row{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; }
+.field-row{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:7px; }
 .field-row.cols-3{ grid-template-columns:1fr 1fr 1fr; }
-.field{ margin-bottom:10px; }
+.field{ margin-bottom:7px; }
 .field:last-child{ margin-bottom:0; }
 .field-row .field{ margin-bottom:0; }
-details.settings summary{ cursor:pointer; font-size:12px; color:var(--muted); font-weight:600; margin-bottom:10px; }
-details.settings[open] summary{ margin-bottom:14px; }
+details.settings summary{ cursor:pointer; font-size:11px; color:var(--muted); font-weight:600; margin-bottom:8px; }
+details.settings[open] summary{ margin-bottom:10px; }
 
 /* ---------- Line items editor ---------- */
-.lines-list{ display:flex; flex-direction:column; gap:10px; margin-bottom:12px; }
+.lines-list{ display:flex; flex-direction:column; gap:7px; margin-bottom:9px; }
 .line-card{
-  border:1px solid var(--line); border-radius:3px; padding:12px; background:var(--panel);
+  border:1px solid var(--line); border-radius:3px; padding:9px; background:var(--panel);
 }
 .line-card.discount{ background:#fbfbf8; border-style:dashed; }
-.line-card-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+.line-card-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
 .line-card-head .line-type-badge{
   font-size:10px; text-transform:uppercase; letter-spacing:.06em; font-weight:700; color:#888;
 }
@@ -148,24 +148,25 @@ details.settings[open] summary{ margin-bottom:14px; }
   border:none; background:transparent; cursor:pointer; color:#888; padding:3px 6px; font-size:13px; border-radius:3px;
 }
 .icon-btn:hover{ background:#eee; color:#111; }
-.line-card .field{ margin-bottom:8px; }
-.line-grid{ display:grid; grid-template-columns: repeat(4, 1fr); gap:8px; }
+.line-card .field{ margin-bottom:6px; }
+.line-grid{ display:grid; grid-template-columns: repeat(4, 1fr); gap:6px; }
 .line-grid .field.span-2{ grid-column: span 2; }
 .line-grid .field.span-4{ grid-column: span 4; }
 .amount-readout{
-  font-family: var(--mono); font-size:13px; font-weight:700; text-align:right; padding-top:6px;
+  font-family: var(--mono); font-size:12px; font-weight:700; text-align:right; padding-top:4px;
 }
 .vat-mode-toggle{ display:flex; border:1px solid #d6d6d6; border-radius:var(--radius); overflow:hidden; }
 .vat-mode-toggle button{
-  flex:1; border:none; background:#fff; padding:7px 4px; font-size:12px; cursor:pointer; color:#555;
+  flex:1; border:none; background:#fff; padding:6px 4px; font-size:11px; cursor:pointer; color:#555;
 }
 .vat-mode-toggle button.active{ background:#111; color:#fff; }
 
-.add-line-buttons{ display:flex; gap:8px; }
+.add-line-buttons{ display:flex; gap:6px; }
 .add-line-buttons .btn{ flex:1; justify-content:center; }
 
-/* ---------- Package grid ---------- */
-.package-select{ margin-bottom:12px; }
+/* ---------- Component quick-add ---------- */
+.component-select{ margin-bottom:9px; display:flex; gap:6px; }
+.component-select select{ flex:1; }
 
 /* ---------- Preview panel ---------- */
 .preview-panel{ display:flex; flex-direction:column; gap:12px; }
@@ -196,7 +197,7 @@ details.settings[open] summary{ margin-bottom:14px; }
 /* ---------- Invoice document styling ---------- */
 .inv-header{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:34px; }
 .inv-logo{ font-size:22px; font-weight:800; letter-spacing:.01em; }
-.inv-logo img{ max-height:46px; display:block; }
+.inv-logo img, .inv-logo svg{ height:34px; width:auto; display:block; }
 .inv-logo .tagline{ font-size:10px; color:#999; letter-spacing:.08em; text-transform:uppercase; margin-top:4px; font-weight:500; }
 .inv-title{ text-align:right; }
 .inv-title h1{ font-size:30px; letter-spacing:.06em; font-weight:800; }
@@ -316,16 +317,6 @@ table.inv-table tbody tr.discount-row td{ color:#555; font-style:italic; }
           <input type="text" id="cust_contactPerson" placeholder="bijv. Stef Jacobs">
         </div>
       </div>
-      <div class="field-row">
-        <div class="field">
-          <label for="cust_firstName">Voornaam</label>
-          <input type="text" id="cust_firstName">
-        </div>
-        <div class="field">
-          <label for="cust_lastName">Achternaam</label>
-          <input type="text" id="cust_lastName">
-        </div>
-      </div>
       <div class="field-row cols-3">
         <div class="field" style="grid-column:span 2;">
           <label for="cust_street">Straat</label>
@@ -336,7 +327,7 @@ table.inv-table tbody tr.discount-row td{ color:#555; font-style:italic; }
           <input type="text" id="cust_houseNumber">
         </div>
       </div>
-      <div class="field-row">
+      <div class="field-row cols-3">
         <div class="field">
           <label for="cust_postalCode">Postcode</label>
           <input type="text" id="cust_postalCode" placeholder="1234 AB">
@@ -345,20 +336,20 @@ table.inv-table tbody tr.discount-row td{ color:#555; font-style:italic; }
           <label for="cust_city">Plaats</label>
           <input type="text" id="cust_city">
         </div>
-      </div>
-      <div class="field-row">
         <div class="field">
           <label for="cust_country">Land</label>
           <input type="text" id="cust_country" placeholder="Nederland">
         </div>
+      </div>
+      <div class="field-row">
         <div class="field">
           <label for="cust_email">E-mailadres</label>
           <input type="email" id="cust_email">
         </div>
-      </div>
-      <div class="field">
-        <label for="cust_phone">Telefoonnummer</label>
-        <input type="text" id="cust_phone">
+        <div class="field">
+          <label for="cust_phone">Telefoonnummer</label>
+          <input type="text" id="cust_phone">
+        </div>
       </div>
     </div>
 
@@ -372,20 +363,29 @@ table.inv-table tbody tr.discount-row td{ color:#555; font-style:italic; }
         </div>
         <div class="field">
           <label for="event_type">Type evenement</label>
-          <input type="text" id="event_type" placeholder="bijv. Bruiloft">
+          <input type="text" id="event_type" placeholder="bijv. Bruiloft" list="eventTypeOptions">
+          <datalist id="eventTypeOptions">
+            <option value="Bruiloft">
+            <option value="Bedrijfsfeest">
+            <option value="Verjaardag">
+            <option value="Jubileum">
+            <option value="Beurs">
+          </datalist>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="event_location">Locatie evenement</label>
+          <input type="text" id="event_location">
+        </div>
+        <div class="field">
+          <label for="event_reference">Offertenr. / referentie</label>
+          <input type="text" id="event_reference" placeholder="bijv. OFF-2026-014">
         </div>
       </div>
       <div class="field">
-        <label for="event_location">Locatie evenement</label>
-        <input type="text" id="event_location">
-      </div>
-      <div class="field">
-        <label for="event_reference">Offertenummer / referentie</label>
-        <input type="text" id="event_reference" placeholder="bijv. OFF-2026-014">
-      </div>
-      <div class="field">
         <label for="event_note">Interne notitie <span style="font-weight:400; color:#aaa;">(verschijnt niet op de factuur)</span></label>
-        <textarea id="event_note" rows="2"></textarea>
+        <textarea id="event_note" rows="1"></textarea>
       </div>
     </div>
 
@@ -415,14 +415,13 @@ table.inv-table tbody tr.discount-row td{ color:#555; font-style:italic; }
       <div class="hint" id="invoiceNumberHint" style="margin-bottom:4px;"></div>
     </div>
 
-    <!-- Pakket & regels -->
+    <!-- Onderdelen & regels -->
     <div class="section">
-      <div class="section-title">Pakket &amp; factuurregels</div>
+      <div class="section-title">Onderdelen &amp; factuurregels</div>
 
-      <div class="package-select">
-        <label for="packageSelect">Lachbox-pakket</label>
-        <select id="packageSelect">
-          <option value="">— Geen pakket / handmatig —</option>
+      <div class="component-select">
+        <select id="componentSelect">
+          <option value="">+ Kies een onderdeel om toe te voegen…</option>
         </select>
       </div>
 
@@ -522,7 +521,7 @@ table.inv-table tbody tr.discount-row td{ color:#555; font-style:italic; }
     <textarea id="importTextarea" placeholder='{
   "customer": { "company": "Tennisvereniging Sambeek", "contactPerson": "Stef Jacobs", ... },
   "event": { "date": "2026-09-20", "location": "Sambeek" },
-  "order": { "package": "premium" }
+  "order": { "components": ["mirrorbooth", "backdrop"] }
 }'></textarea>
     <div class="modal-actions">
       <button class="btn secondary" id="btnImportCancel">Annuleren</button>
@@ -570,15 +569,18 @@ const CONFIG = {
     vatNumber: "868583078B01",
     email: "info@lachbox.nl",
     defaultPaymentTermDays: 14,
-    logoUrl: "" // optioneel: url of data-uri naar het Lachbox-logo. Leeg = tekst-logo.
+    logoUrl: "" // optioneel: url of data-uri naar een eigen logobestand. Leeg = ingebouwd Lachbox-beeldmerk (SVG, zie LOGO_SVG_MARKUP hieronder).
   },
 
-  // Lachbox-pakketten. Prijzen zijn standaard inclusief BTW.
-  packages: {
-    basis:    { name: "Basis pakket",    price: 375, vatRate: 21, priceMode: "incl" },
-    premium:  { name: "Premium pakket",  price: 425, vatRate: 21, priceMode: "incl" },
-    deluxe:   { name: "Deluxe pakket",   price: 525, vatRate: 21, priceMode: "incl" },
-    maatwerk: { name: "Maatwerk",        price: 0,   vatRate: 21, priceMode: "incl" }
+  // Losse, bij elkaar op te tellen onderdelen (a-la-carte, vervangt de oude
+  // vaste pakketten). Bron: lachbox.nl/mirrorbooth. Prijzen zijn standaard
+  // inclusief BTW. "mirrorbooth" is de basisdienst, de rest zijn add-ons.
+  components: {
+    mirrorbooth:  { name: "Mirrorbooth",                  subtext: "Inclusief gepersonaliseerde fotostrip, opbouw en afbouw", price: 375, vatRate: 21, priceMode: "incl" },
+    onbeperkt:    { name: "Onbeperkt printen",             subtext: "Standaard zijn 75 prints inbegrepen",                     price: 35,  vatRate: 21, priceMode: "incl" },
+    props:        { name: "Props-pakket",                  subtext: "Brillen, bordjes en hoedjes voor extra gekke poses",      price: 15,  vatRate: 21, priceMode: "incl" },
+    backdrop:     { name: "Backdrop",                      subtext: "Achtergrond voor een strak studiogevoel",                 price: 45,  vatRate: 21, priceMode: "incl" },
+    rodeloper:    { name: "Rode loper met afzetpaaltjes",  subtext: "Hollywood-entree waar gasten mee binnenkomen",           price: 40,  vatRate: 21, priceMode: "incl" }
   },
 
   // Beschikbare BTW-tarieven in de dropdown. "custom" laat de gebruiker
@@ -595,6 +597,24 @@ const STORAGE_KEYS = {
   companySettings: "lachbox_company_settings",
   vatModePref: "lachbox_vat_mode_pref"
 };
+
+// Ingebouwd Lachbox-beeldmerk als vector (scherp op elke schaal, ideaal voor
+// print). Statische, door ons geschreven markup — geen gebruikersinput, dus
+// veilig om via innerHTML in te voegen. Wordt gebruikt zolang er geen eigen
+// logoUrl is ingesteld in de bedrijfsinstellingen.
+const LOGO_SVG_MARKUP = `
+<svg viewBox="0 0 640 280" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Lachbox">
+  <path d="M 95 92 C 128 42, 168 42, 201 92 C 168 68, 128 68, 95 92 Z" fill="#111"/>
+  <path d="M 397 92 C 430 42, 470 42, 503 92 C 470 68, 430 68, 397 92 Z" fill="#111"/>
+  <text x="18" y="192" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="128" letter-spacing="-3" fill="#111">LACHB</text>
+  <circle cx="466" cy="150" r="62" fill="#111"/>
+  <text x="533" y="192" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="128" letter-spacing="-3" fill="#111">X</text>
+  <g transform="translate(466,150)">
+    <path d="M -11.12 -34.24 L 4.09 -8.02 L 34.24 -11.12 L 8.02 4.09 L 11.12 34.24 L -4.09 8.02 L -34.24 11.12 L -8.02 -4.09 Z" fill="#fff"/>
+    <path d="M -14 28 Q 2 40 18 28" stroke="#fff" stroke-width="6" stroke-linecap="round" fill="none"/>
+  </g>
+  <path d="M 60 232 C 160 302, 480 302, 580 232 C 480 262, 160 262, 60 232 Z" fill="#111"/>
+</svg>`.trim();
 
 
 /* ============================================================
@@ -642,7 +662,7 @@ function createEmptyState(){
   const term = companySettings.defaultPaymentTermDays;
   return {
     customer: {
-      company: "", firstName: "", lastName: "", contactPerson: "",
+      company: "", contactPerson: "",
       street: "", houseNumber: "", postalCode: "", city: "", country: "Nederland",
       email: "", phone: ""
     },
@@ -655,7 +675,6 @@ function createEmptyState(){
       paymentTermDays: term,
       dueDate: formatDateInputValue(addDays(today, term))
     },
-    packageKey: "",
     lines: []
   };
 }
@@ -730,7 +749,7 @@ function clearDraft(){
 function draftHasContent(s){
   if (!s) return false;
   const c = s.customer;
-  const hasCustomer = !!(c.company || c.firstName || c.lastName || c.contactPerson || c.email);
+  const hasCustomer = !!(c.company || c.contactPerson || c.email);
   const hasLines = s.lines && s.lines.some(l => l.description && l.description.trim().length > 0);
   return hasCustomer || hasLines;
 }
@@ -874,7 +893,7 @@ function validateInvoice(){
   const errors = [];
   const c = state.customer, inv = state.invoice;
 
-  const hasCustomerName = !!(c.company.trim() || c.firstName.trim() || c.lastName.trim() || c.contactPerson.trim());
+  const hasCustomerName = !!(c.company.trim() || c.contactPerson.trim());
   if (!hasCustomerName){
     errors.push({ field: "cust_company", message: "Vul een klantnaam of bedrijfsnaam in." });
   }
@@ -1011,8 +1030,6 @@ function importInvoiceData(data){
   const o = data.order || {};
 
   if (c.company != null) state.customer.company = String(c.company);
-  if (c.firstName != null) state.customer.firstName = String(c.firstName);
-  if (c.lastName != null) state.customer.lastName = String(c.lastName);
   if (c.contactPerson != null) state.customer.contactPerson = String(c.contactPerson);
   if (c.street != null) state.customer.street = String(c.street);
   if (c.houseNumber != null) state.customer.houseNumber = String(c.houseNumber);
@@ -1027,9 +1044,15 @@ function importInvoiceData(data){
   if (e.type != null) state.event.type = String(e.type);
   if (e.reference != null) state.event.reference = String(e.reference);
 
-  if (o.package != null && CONFIG.packages[o.package]){
-    applyPackageToState(String(o.package));
-  }
+  // "components" is de huidige a-la-carte structuur: een lijst met keys uit
+  // CONFIG.components (elk wordt een losse regel). "package" blijft ondersteund
+  // als legacy alias voor een enkel component, voor oudere offertes/koppelingen.
+  const componentKeys = [];
+  if (Array.isArray(o.components)) componentKeys.push(...o.components);
+  if (o.package != null) componentKeys.push(o.package);
+  componentKeys.forEach(key => {
+    if (key && CONFIG.components[key]) addComponentLine(String(key));
+  });
 
   scheduleDraftSave();
   populateFormFromState();
@@ -1048,31 +1071,25 @@ function importFromJSON(jsonText){
 
 
 /* ============================================================
-   PACKAGE HANDLING
+   COMPONENT HANDLING
+   Voegt een los onderdeel uit CONFIG.components toe als nieuwe
+   factuurregel. Meerdere onderdelen worden simpelweg meerdere
+   regels (a-la-carte), in tegenstelling tot de oude vaste pakketten.
    ============================================================ */
 
-function applyPackageToState(pkgKey){
-  state.packageKey = pkgKey;
-  if (!pkgKey || !CONFIG.packages[pkgKey]) return;
-  const pkg = CONFIG.packages[pkgKey];
-
-  const existingIdx = state.lines.findIndex(l => l.isPackageLine);
-  const line = {
-    id: existingIdx >= 0 ? state.lines[existingIdx].id : uid(),
+function addComponentLine(componentKey){
+  const comp = CONFIG.components[componentKey];
+  if (!comp) return;
+  state.lines.push({
+    id: uid(),
     type: "item",
-    isPackageLine: true,
-    description: pkg.name,
-    subtext: "",
+    description: comp.name,
+    subtext: comp.subtext || "",
     qty: 1,
-    price: pkg.price,
-    priceMode: pkg.priceMode,
-    vatRate: pkg.vatRate
-  };
-  if (existingIdx >= 0){
-    state.lines[existingIdx] = line;
-  } else {
-    state.lines.unshift(line);
-  }
+    price: comp.price,
+    priceMode: comp.priceMode,
+    vatRate: comp.vatRate
+  });
 }
 
 
@@ -1106,12 +1123,12 @@ function getPath(obj, path){
   return path.split(".").reduce((cur, p) => (cur == null ? cur : cur[p]), obj);
 }
 
-function populatePackageDropdown(){
-  const select = el("packageSelect");
-  Object.keys(CONFIG.packages).forEach(key => {
+function populateComponentDropdown(){
+  const select = el("componentSelect");
+  Object.keys(CONFIG.components).forEach(key => {
     const opt = document.createElement("option");
     opt.value = key;
-    opt.textContent = `${CONFIG.packages[key].name} — ${formatCurrency(CONFIG.packages[key].price)}`;
+    opt.textContent = `${CONFIG.components[key].name} — ${formatCurrency(CONFIG.components[key].price)}`;
     select.appendChild(opt);
   });
 }
@@ -1120,8 +1137,6 @@ function populateFormFromState(){
   const c = state.customer, ev = state.event, inv = state.invoice;
   el("cust_company").value = c.company;
   el("cust_contactPerson").value = c.contactPerson;
-  el("cust_firstName").value = c.firstName;
-  el("cust_lastName").value = c.lastName;
   el("cust_street").value = c.street;
   el("cust_houseNumber").value = c.houseNumber;
   el("cust_postalCode").value = c.postalCode;
@@ -1141,8 +1156,6 @@ function populateFormFromState(){
   el("inv_paymentTerm").value = inv.paymentTermDays;
   el("inv_dueDate").value = inv.dueDate;
 
-  el("packageSelect").value = state.packageKey || "";
-
   renderLineEditors();
 }
 
@@ -1161,8 +1174,6 @@ function populateSettingsForm(){
 function attachStaticListeners(){
   bindSimple("cust_company", "customer.company");
   bindSimple("cust_contactPerson", "customer.contactPerson");
-  bindSimple("cust_firstName", "customer.firstName");
-  bindSimple("cust_lastName", "customer.lastName");
   bindSimple("cust_street", "customer.street");
   bindSimple("cust_houseNumber", "customer.houseNumber");
   bindSimple("cust_postalCode", "customer.postalCode");
@@ -1203,11 +1214,15 @@ function attachStaticListeners(){
     renderAll();
   });
 
-  el("packageSelect").addEventListener("change", () => {
-    applyPackageToState(el("packageSelect").value);
-    scheduleDraftSave();
-    renderLineEditors();
-    renderAll();
+  el("componentSelect").addEventListener("change", () => {
+    const select = el("componentSelect");
+    if (select.value){
+      addComponentLine(select.value);
+      select.value = "";
+      scheduleDraftSave();
+      renderLineEditors();
+      renderAll();
+    }
   });
 
   el("btnAddLine").addEventListener("click", () => {
@@ -1295,7 +1310,7 @@ function buildLineCard(line, index){
   head.className = "line-card-head";
   const badge = document.createElement("span");
   badge.className = "line-type-badge";
-  badge.textContent = line.type === "discount" ? "Korting" : (line.isPackageLine ? "Pakket" : `Regel ${index + 1}`);
+  badge.textContent = line.type === "discount" ? "Korting" : `Regel ${index + 1}`;
   head.appendChild(badge);
 
   const actions = document.createElement("div");
@@ -1503,7 +1518,7 @@ function removeLine(id){
 function duplicateLine(id){
   const idx = state.lines.findIndex(l => l.id === id);
   if (idx < 0) return;
-  const copy = Object.assign({}, state.lines[idx], { id: uid(), isPackageLine: false });
+  const copy = Object.assign({}, state.lines[idx], { id: uid() });
   state.lines.splice(idx + 1, 0, copy);
   scheduleDraftSave();
   renderLineEditors();
@@ -1531,8 +1546,7 @@ function getCustomerAddressLines(c){
   const lines = [];
   if (c.company && c.company.trim()) lines.push(c.company.trim());
 
-  const personName = (c.contactPerson && c.contactPerson.trim())
-    || [c.firstName, c.lastName].filter(Boolean).join(" ").trim();
+  const personName = c.contactPerson && c.contactPerson.trim();
   if (personName){
     lines.push(c.company && c.company.trim() ? `t.n.v. ${personName}` : personName);
   }
@@ -1572,8 +1586,8 @@ function renderInvoice(calc){
     img.alt = companySettings.name;
     logoBlock.appendChild(img);
   } else {
-    logoBlock.appendChild(document.createTextNode(companySettings.name || "Lachbox"));
-    logoBlock.appendChild(makeEl("div", "tagline", "Photobooth verhuur"));
+    // Statische, door ons geschreven SVG-markup (geen gebruikersinput) — veilig.
+    logoBlock.innerHTML = LOGO_SVG_MARKUP;
   }
   header.appendChild(logoBlock);
 
@@ -1757,7 +1771,7 @@ function slugify(text){
 
 function updateFilenamePreview(){
   const c = state.customer;
-  const customerName = c.company || [c.firstName, c.lastName].filter(Boolean).join(" ") || "Klant";
+  const customerName = c.company || c.contactPerson || "Klant";
   const filename = `Factuur_${state.invoice.number || "concept"}_${slugify(customerName)}.pdf`;
   el("filenamePreview").textContent = filename;
   return filename;
@@ -1895,7 +1909,7 @@ function handlePrint(){
 
 function init(){
   companySettings = loadCompanySettings();
-  populatePackageDropdown();
+  populateComponentDropdown();
   attachStaticListeners();
   populateSettingsForm();
 
