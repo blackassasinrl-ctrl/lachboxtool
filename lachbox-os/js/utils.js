@@ -211,6 +211,76 @@ function askConfirm(title, message, opts){
   });
 }
 
+/* ---------- Generieke modal (los van de shell, bouwt eigen DOM) ----------
+   Voor formulieren zoals "Nieuwe lead" of "Klant bewerken". Anders dan
+   askConfirm (die vaste containers uit de shell gebruikt) maakt dit zijn
+   eigen overlay/modal-nodes aan en ruimt ze bij close() weer op — zo kan
+   elke module modals tonen zonder dat de shell ze vooraf hoeft te kennen. */
+function openModal(opts){
+  opts = opts || {};
+  const overlay = make("div", "modal-overlay");
+  const modal = make("div", "modal" + (opts.size === "large" ? " modal-large" : ""));
+  const header = make("div", "modal-header");
+  header.appendChild(make("h2", null, opts.title || ""));
+  const closeBtn = make("button", "modal-close-btn", "✕");
+  closeBtn.type = "button";
+  closeBtn.setAttribute("aria-label", "Sluiten");
+  header.appendChild(closeBtn);
+  modal.appendChild(header);
+  const body = make("div", "modal-body");
+  modal.appendChild(body);
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+
+  function close(){ overlay.remove(); }
+  closeBtn.addEventListener("click", close);
+  overlay.addEventListener("mousedown", (e) => { if (e.target === overlay) close(); });
+
+  const api = { close, body, modal, overlay };
+  if (typeof opts.build === "function") opts.build(body, api);
+  return api;
+}
+
+/* ---------- Gedeelde formulier-bouwstenen ----------
+   Gebruikt door Instellingen (M1) en CRM (M2) — één keer geschreven,
+   overal hetzelfde uiterlijk en gedrag. */
+function fieldRow(...fields){
+  const row = make("div", "field-row");
+  fields.forEach(f => row.appendChild(f));
+  return row;
+}
+function textField(label, value, onInput, opts){
+  opts = opts || {};
+  const wrap = make("div", "field");
+  if (label) wrap.appendChild(make("label", null, label));
+  const input = document.createElement(opts.textarea ? "textarea" : "input");
+  if (!opts.textarea) input.type = opts.type || "text";
+  input.value = value == null ? "" : value;
+  if (opts.placeholder) input.placeholder = opts.placeholder;
+  if (opts.textarea) input.rows = opts.rows || 2;
+  input.addEventListener("input", () => onInput(input.value));
+  wrap.appendChild(input);
+  if (opts.hint) wrap.appendChild(make("div", "field-hint", opts.hint));
+  wrap._input = input;
+  return wrap;
+}
+function selectField(label, value, options, onChange){
+  // options: array van [waarde, label]
+  const wrap = make("div", "field");
+  if (label) wrap.appendChild(make("label", null, label));
+  const select = document.createElement("select");
+  options.forEach(([val, text]) => {
+    const opt = document.createElement("option");
+    opt.value = val; opt.textContent = text;
+    if (String(val) === String(value)) opt.selected = true;
+    select.appendChild(opt);
+  });
+  select.addEventListener("change", () => onChange(select.value));
+  wrap.appendChild(select);
+  wrap._select = select;
+  return wrap;
+}
+
 LachboxOS.utils = {
   uuid,
   roundMoney, formatCurrency,
@@ -220,7 +290,8 @@ LachboxOS.utils = {
   calcAmountsFromUnit, calculateInvoiceTotals,
   escapeHtml, slugify,
   el, make, clear,
-  showToast, askConfirm
+  showToast, askConfirm, openModal,
+  fieldRow, textField, selectField
 };
 
 })();

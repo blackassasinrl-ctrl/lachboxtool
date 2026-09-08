@@ -181,24 +181,9 @@ function readFileAsDataUrl(file){
   });
 }
 
-/* ---------- Formulier-opbouw ---------- */
-function fieldRow(...fields){
-  const row = utils().make("div", "field-row");
-  fields.forEach(f => row.appendChild(f));
-  return row;
-}
-function textField(label, value, onInput, opts){
-  opts = opts || {};
-  const wrap = utils().make("div", "field");
-  wrap.appendChild(utils().make("label", null, label));
-  const input = document.createElement(opts.textarea ? "textarea" : "input");
-  if (!opts.textarea) input.type = opts.type || "text";
-  input.value = value || "";
-  if (opts.textarea) input.rows = opts.rows || 2;
-  input.addEventListener("input", () => onInput(input.value));
-  wrap.appendChild(input);
-  return wrap;
-}
+/* ---------- Formulier-opbouw (fieldRow/textField komen uit utils.js) ---------- */
+const fieldRow = (...args) => utils().fieldRow(...args);
+const textField = (...args) => utils().textField(...args);
 
 function renderCompanySection(container, settings, markDirty){
   const section = utils().make("div", "section-card");

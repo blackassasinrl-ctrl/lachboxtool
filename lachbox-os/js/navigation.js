@@ -85,16 +85,23 @@ function renderSidebar(activePath){
   if (!nav) return;
   utils().clear(nav);
 
-  // Groepeer op route.group (null = los bovenaan) in registratievolgorde.
+  // Groepeer op route.group in registratievolgorde. Losse (group:null) items
+  // krijgen elk hun eigen plek op hun eigen registratiemoment (bv. Dashboard
+  // bovenaan, Instellingen onderaan) — alleen routes met dezelfde groepsnaam
+  // worden samengevoegd, en wel op de positie waar die groep het eerst
+  // voorkwam. Routes met een :param (detailpagina's) verschijnen nooit.
   const groups = [];
-  const groupIndex = {};
-  routes.forEach(route => {
-    const key = route.group || "__ungrouped__";
-    if (!(key in groupIndex)){
-      groupIndex[key] = groups.length;
-      groups.push({ name: route.group || null, items: [] });
+  const namedGroupIndex = {};
+  routes.filter(route => !route.path.includes(":")).forEach(route => {
+    if (!route.group){
+      groups.push({ name: null, items: [route] });
+      return;
     }
-    groups[groupIndex[key]].items.push(route);
+    if (!(route.group in namedGroupIndex)){
+      namedGroupIndex[route.group] = groups.length;
+      groups.push({ name: route.group, items: [] });
+    }
+    groups[namedGroupIndex[route.group]].items.push(route);
   });
 
   groups.forEach(group => {
