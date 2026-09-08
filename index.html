@@ -495,7 +495,8 @@ table.inv-table tbody tr.discount-row td{ color:#555; font-style:italic; }
       <div class="actions">
         <button class="btn secondary" id="btnSaveDraft">Concept opslaan</button>
         <button class="btn secondary" id="btnFinalize">Factuur afronden</button>
-        <button class="btn primary" id="btnPrint">Opslaan als PDF / Print</button>
+        <button class="btn secondary" id="btnPrint">Print</button>
+        <button class="btn primary" id="btnDownloadPdf">Download factuur (PDF)</button>
       </div>
     </div>
 
@@ -657,15 +658,16 @@ function createEmptyLine(type){
   };
 }
 
-// Mirrorbooth is de standaard basisdienst: elke nieuwe factuur begint hiermee
-// al ingevuld, de gebruiker hoeft hem alleen nog te verwijderen/aanpassen als
-// een offerte hier onverhoopt van afwijkt.
+// Mirrorbooth wordt altijd verkocht, dus elke nieuwe factuur begint met deze
+// regel vast (locked:true) ingevuld: aanpasbaar in prijs/aantal, maar niet te
+// verwijderen. Zie removeLine() en de "vast onderdeel"-badge in de editor.
 function buildDefaultLines(){
   const comp = CONFIG.components.mirrorbooth;
   if (!comp) return [];
   return [{
     id: uid(),
     type: "item",
+    locked: true,
     description: comp.name,
     subtext: comp.subtext || "",
     qty: 1,
@@ -997,10 +999,12 @@ function showValidationErrors(errors){
    INVOICE NUMBERING
    ============================================================ */
 
-// Format: jjjj-mm-nnn — "hoeveelste verhuur" telt binnen de kalendermaand,
-// niet binnen het jaar. De teller reset dus elke nieuwe maand naar 001.
+// Format: jjjjmmnn (aan elkaar, geen streepjes) — precies zoals op de oude
+// Lachbox-facturen, bv. 20260501 = 2026, maand 05, 1e factuur van die maand.
+// "nn" telt de hoeveelste factuur binnen de kalendermaand, dus de teller
+// reset elke nieuwe maand naar 01 (niet elke jaarwisseling).
 // CONFIG.invoiceNumberPrefix staat leeg (geen prefix); vul hem in als er
-// later toch weer een prefix (bv. "LB") gewenst is.
+// later toch een prefix (bv. "LB") gewenst is.
 function generateProvisionalInvoiceNumber(){
   const counter = loadInvoiceCounter();
   const now = new Date();
@@ -1010,18 +1014,22 @@ function generateProvisionalInvoiceNumber(){
 }
 
 function formatInvoiceNumber(year, month, seq){
-  const prefix = CONFIG.invoiceNumberPrefix ? CONFIG.invoiceNumberPrefix + "-" : "";
-  return `${prefix}${year}-${pad2(month)}-${String(seq).padStart(3, "0")}`;
+  const prefix = CONFIG.invoiceNumberPrefix || "";
+  return `${prefix}${year}${pad2(month)}${String(seq).padStart(2, "0")}`;
 }
 
 function parseInvoiceNumber(numberStr){
   const prefixPart = CONFIG.invoiceNumberPrefix
-    ? CONFIG.invoiceNumberPrefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "-"
+    ? CONFIG.invoiceNumberPrefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
     : "";
-  const re = new RegExp(`^${prefixPart}(\\d{4})-(\\d{2})-(\\d+)$`);
+  // Het volgnummer heeft standaard 2 cijfers, maar loopt door (3+) mocht een
+  // maand ooit meer dan 99 facturen tellen — nog steeds correct te parsen.
+  const re = new RegExp(`^${prefixPart}(\\d{4})(\\d{2})(\\d+)$`);
   const m = (numberStr || "").trim().match(re);
   if (!m) return null;
-  return { year: parseInt(m[1], 10), month: parseInt(m[2], 10), seq: parseInt(m[3], 10) };
+  const month = parseInt(m[2], 10);
+  if (month < 1 || month > 12) return null;
+  return { year: parseInt(m[1], 10), month, seq: parseInt(m[3], 10) };
 }
 
 function periodKey(year, month){ return year * 12 + month; }
@@ -1329,6 +1337,7 @@ function attachStaticListeners(){
   el("btnSaveDraft").addEventListener("click", onSaveDraftClick);
   el("btnFinalize").addEventListener("click", onFinalizeClick);
   el("btnPrint").addEventListener("click", handlePrint);
+  el("btnDownloadPdf").addEventListener("click", downloadInvoicePdf);
 }
 
 function recalcDueDate(){
@@ -1368,7 +1377,7 @@ function buildLineCard(line, index){
   head.className = "line-card-head";
   const badge = document.createElement("span");
   badge.className = "line-type-badge";
-  badge.textContent = line.type === "discount" ? "Korting" : `Regel ${index + 1}`;
+  badge.textContent = line.type === "discount" ? "Korting" : (line.locked ? "Vast onderdeel" : `Regel ${index + 1}`);
   head.appendChild(badge);
 
   const actions = document.createElement("div");
@@ -1382,13 +1391,15 @@ function buildLineCard(line, index){
   dupBtn.addEventListener("click", () => duplicateLine(line.id));
   actions.appendChild(dupBtn);
 
-  const delBtn = document.createElement("button");
-  delBtn.type = "button";
-  delBtn.className = "icon-btn";
-  delBtn.title = "Verwijderen";
-  delBtn.textContent = "✕";
-  delBtn.addEventListener("click", () => removeLine(line.id));
-  actions.appendChild(delBtn);
+  if (!line.locked){
+    const delBtn = document.createElement("button");
+    delBtn.type = "button";
+    delBtn.className = "icon-btn";
+    delBtn.title = "Verwijderen";
+    delBtn.textContent = "✕";
+    delBtn.addEventListener("click", () => removeLine(line.id));
+    actions.appendChild(delBtn);
+  }
 
   head.appendChild(actions);
   card.appendChild(head);
@@ -1567,6 +1578,11 @@ function buildDiscountModeField(line){
 }
 
 function removeLine(id){
+  const line = state.lines.find(l => l.id === id);
+  if (line && line.locked){
+    showToast("Mirrorbooth wordt altijd gefactureerd en kan niet verwijderd worden.", "error");
+    return;
+  }
   state.lines = state.lines.filter(l => l.id !== id);
   scheduleDraftSave();
   renderLineEditors();
@@ -1576,7 +1592,7 @@ function removeLine(id){
 function duplicateLine(id){
   const idx = state.lines.findIndex(l => l.id === id);
   if (idx < 0) return;
-  const copy = Object.assign({}, state.lines[idx], { id: uid() });
+  const copy = Object.assign({}, state.lines[idx], { id: uid(), locked: false });
   state.lines.splice(idx + 1, 0, copy);
   scheduleDraftSave();
   renderLineEditors();
@@ -1627,6 +1643,32 @@ function makeEl(tag, className, text){
   if (className) node.className = className;
   if (text != null) node.textContent = text;
   return node;
+}
+
+// Zet een berekende regel om naar weergavetekst. Gedeeld door de HTML-preview
+// en de PDF-export zodat ze nooit uit elkaar kunnen lopen.
+function getLineDisplayParts(l){
+  const description = l.description || (l.type === "discount" ? "Korting" : "—");
+  const subtextLines = [];
+  if (l.subtext && l.subtext.trim()) subtextLines.push(l.subtext.trim());
+  if (l.type === "discount" && l.discountMode === "percentage"){
+    subtextLines.push(`${l.discountValue}% korting`);
+  }
+  let priceLabel;
+  if (l.type === "item"){
+    priceLabel = `${l.qty} × ${formatCurrency(l.price)}`;
+  } else if (l.discountMode === "percentage"){
+    priceLabel = "—";
+  } else {
+    priceLabel = formatCurrency(-Math.abs(Number(l.discountValue) || 0));
+  }
+  return {
+    description,
+    subtextLines,
+    vatLabel: `${l.vatRate}%`,
+    priceLabel,
+    amountLabel: formatCurrency(l.inclAmount)
+  };
 }
 
 function renderInvoice(calc){
@@ -1694,12 +1736,9 @@ function renderInvoice(calc){
   root.appendChild(parties);
 
   /* ---- Evenementregel (optioneel) ---- */
-  const eventBits = [];
-  if (ev.type && ev.type.trim()) eventBits.push(ev.type.trim());
-  if (ev.date) eventBits.push(formatDateDisplay(ev.date));
-  if (ev.location && ev.location.trim()) eventBits.push(ev.location.trim());
-  if (eventBits.length > 0){
-    root.appendChild(makeEl("div", "inv-event-line", "Evenement: " + eventBits.join(" — ")));
+  const eventLineText = buildEventLineText();
+  if (eventLineText){
+    root.appendChild(makeEl("div", "inv-event-line", eventLineText));
   }
 
   /* ---- Regeltabel ---- */
@@ -1725,37 +1764,28 @@ function renderInvoice(calc){
     tbody.appendChild(tr);
   } else {
     calc.lines.forEach(l => {
+      const parts = getLineDisplayParts(l);
       const tr = document.createElement("tr");
       if (l.type === "discount") tr.className = "discount-row";
 
       const tdDesc = document.createElement("td");
-      const descMain = makeEl("div", "desc-main", l.description || (l.type === "discount" ? "Korting" : "—"));
-      tdDesc.appendChild(descMain);
-      if (l.subtext && l.subtext.trim()) tdDesc.appendChild(makeEl("div", "desc-sub", l.subtext.trim()));
-      if (l.type === "discount" && l.discountMode === "percentage"){
-        tdDesc.appendChild(makeEl("div", "desc-sub", `${l.discountValue}% korting`));
-      }
+      tdDesc.appendChild(makeEl("div", "desc-main", parts.description));
+      parts.subtextLines.forEach(sub => tdDesc.appendChild(makeEl("div", "desc-sub", sub)));
       tr.appendChild(tdDesc);
 
       const tdVat = document.createElement("td");
       tdVat.className = "num";
-      tdVat.textContent = `${l.vatRate}%`;
+      tdVat.textContent = parts.vatLabel;
       tr.appendChild(tdVat);
 
       const tdPrice = document.createElement("td");
       tdPrice.className = "num";
-      if (l.type === "item"){
-        tdPrice.textContent = `${l.qty} × ${formatCurrency(l.price)}`;
-      } else if (l.discountMode === "percentage"){
-        tdPrice.textContent = "—";
-      } else {
-        tdPrice.textContent = formatCurrency(-Math.abs(Number(l.discountValue) || 0));
-      }
+      tdPrice.textContent = parts.priceLabel;
       tr.appendChild(tdPrice);
 
       const tdAmount = document.createElement("td");
       tdAmount.className = "num";
-      tdAmount.textContent = formatCurrency(l.inclAmount);
+      tdAmount.textContent = parts.amountLabel;
       tr.appendChild(tdAmount);
 
       tbody.appendChild(tr);
@@ -1820,6 +1850,16 @@ function buildPaymentText(){
   return `Gelieve binnen ${term} dagen te betalen op ${companySettings.iban} ten name van ${companySettings.name} onder vermelding van factuurnummer ${inv.number || "(nog geen nummer)"}.`;
 }
 
+// Gedeeld door de HTML-preview en de PDF-export, zodat beide altijd hetzelfde tonen.
+function buildEventLineText(){
+  const ev = state.event;
+  const bits = [];
+  if (ev.type && ev.type.trim()) bits.push(ev.type.trim());
+  if (ev.date) bits.push(formatDateDisplay(ev.date));
+  if (ev.location && ev.location.trim()) bits.push(ev.location.trim());
+  return bits.length > 0 ? "Evenement: " + bits.join(" — ") : "";
+}
+
 function slugify(text){
   return (text || "")
     .normalize("NFD").replace(/[̀-ͯ]/g, "")
@@ -1843,17 +1883,30 @@ function renderAll(){
   updateInvoiceNumberHint();
 }
 
+const MONTH_NAMES_NL = [
+  "januari", "februari", "maart", "april", "mei", "juni",
+  "juli", "augustus", "september", "oktober", "november", "december"
+];
+
+function ordinalNl(n){
+  return n + "e"; // 1e, 2e, 3e, ... (Nederlandse rangtelwoorden gebruiken geen "ste/de"-onderscheid hier)
+}
+
+// Legt in gewone taal uit wat het nummer betekent: formaat jjjjmmnn, waarbij
+// de laatste twee cijfers de hoeveelste factuur van die kalendermaand zijn.
 function updateInvoiceNumberHint(){
   const hint = el("invoiceNumberHint");
   const parsed = parseInvoiceNumber(state.invoice.number);
   if (!state.invoice.number){
     hint.textContent = "";
   } else if (parsed){
+    const maand = MONTH_NAMES_NL[parsed.month - 1];
+    const uitleg = `${ordinalNl(parsed.seq)} factuur van ${maand} ${parsed.year} (formaat jjjjmmnn — teller reset elke maand naar 01)`;
     hint.textContent = isFinalized
-      ? "Dit nummer is vastgelegd."
-      : "Voorgesteld nummer — wordt pas vastgelegd bij 'Factuur afronden'.";
+      ? `Vastgelegd nummer: ${uitleg}.`
+      : `Voorstel: ${uitleg}. Wordt pas vastgelegd bij 'Factuur afronden'.`;
   } else {
-    hint.textContent = "Afwijkend/handmatig nummer — de automatische teller wordt hierdoor niet aangepast.";
+    hint.textContent = "Afwijkend/handmatig nummer (verwacht formaat: jjjjmmnn) — de automatische teller wordt hierdoor niet aangepast.";
   }
 }
 
@@ -1959,6 +2012,517 @@ function handlePrint(){
   document.title = filename.replace(/\.pdf$/i, "");
   window.print();
   setTimeout(() => { document.title = originalTitle; }, 500);
+}
+
+
+/* ============================================================
+   PDF EXPORT (client-side, geen dependencies)
+   Genereert een echt, valide PDF 1.4-bestand rechtstreeks in de
+   browser voor de "Download factuur"-knop: eigen minimale PDF-
+   objectstructuur, de ingebouwde Helvetica/Helvetica-Bold basis-
+   fonts (geen embedding nodig — elke PDF-lezer kent ze) en de
+   Web Compression Streams API voor het comprimeren van de content
+   en het ingebedde logo. Werkt zonder externe library en zonder
+   internetverbinding. Print/"Opslaan als PDF" via de browser (zie
+   handlePrint hierboven) blijft daarnaast beschikbaar als exacte
+   1-op-1 kopie van de HTML-opmaak, bijvoorbeeld om echt op papier
+   te printen.
+   ============================================================ */
+
+function pdfNum(v){ return (Math.round(v * 1000) / 1000).toString(); }
+
+function concatBytes(chunks){
+  let total = 0;
+  for (const c of chunks) total += c.length;
+  const out = new Uint8Array(total);
+  let off = 0;
+  for (const c of chunks){ out.set(c, off); off += c.length; }
+  return out;
+}
+
+// Eén teken -> één byte (Latin-1/WinAnsi-bereik). Voor PDF-dictionaries/
+// operators (pure ASCII) en voor al-WinAnsi-geëncodeerde tekststrings.
+function strToBytes(str){
+  const out = new Uint8Array(str.length);
+  for (let i=0;i<str.length;i++) out[i] = str.charCodeAt(i) & 0xFF;
+  return out;
+}
+
+async function pdfDeflate(bytes){
+  const cs = new CompressionStream('deflate');
+  const writer = cs.writable.getWriter();
+  writer.write(bytes);
+  writer.close();
+  return new Uint8Array(await new Response(cs.readable).arrayBuffer());
+}
+async function pdfInflate(bytes){
+  const ds = new DecompressionStream('deflate');
+  const writer = ds.writable.getWriter();
+  writer.write(bytes);
+  writer.close();
+  return new Uint8Array(await new Response(ds.readable).arrayBuffer());
+}
+
+function readUint32BE(bytes, off){
+  return (bytes[off]<<24 | bytes[off+1]<<16 | bytes[off+2]<<8 | bytes[off+3]) >>> 0;
+}
+
+// Decodeert een 8-bit RGBA PNG (geen interlacing) naar ruwe pixelrijen.
+// Alleen dit ene, voorspelbare formaat is nodig: het eigen logobestand.
+async function decodePngToRows(pngBytes){
+  if (!(pngBytes[0]===0x89 && pngBytes[1]===0x50 && pngBytes[2]===0x4E && pngBytes[3]===0x47)){
+    throw new Error("Bestand is geen geldige PNG.");
+  }
+  let pos = 8, width=0, height=0, bitDepth=0, colorType=0;
+  const idatChunks = [];
+  while (pos < pngBytes.length){
+    const length = readUint32BE(pngBytes, pos);
+    const type = String.fromCharCode(pngBytes[pos+4], pngBytes[pos+5], pngBytes[pos+6], pngBytes[pos+7]);
+    const data = pngBytes.slice(pos+8, pos+8+length);
+    pos += 8 + length + 4;
+    if (type === "IHDR"){
+      width = readUint32BE(data, 0); height = readUint32BE(data, 4);
+      bitDepth = data[8]; colorType = data[9];
+    } else if (type === "IDAT"){
+      idatChunks.push(data);
+    } else if (type === "IEND"){
+      break;
+    }
+  }
+  if (bitDepth !== 8 || colorType !== 6){
+    throw new Error("Alleen 8-bit RGBA PNG's worden ondersteund voor PDF-export.");
+  }
+  const raw = await pdfInflate(concatBytes(idatChunks));
+  const bpp = 4, stride = width * bpp;
+  let prev = new Uint8Array(stride);
+  const rows = [];
+  let p = 0;
+  for (let y=0; y<height; y++){
+    const ftype = raw[p]; p += 1;
+    const row = raw.slice(p, p+stride); p += stride;
+    if (ftype === 1){
+      for (let i=bpp;i<stride;i++) row[i] = (row[i] + row[i-bpp]) & 0xFF;
+    } else if (ftype === 2){
+      for (let i=0;i<stride;i++) row[i] = (row[i] + prev[i]) & 0xFF;
+    } else if (ftype === 3){
+      for (let i=0;i<stride;i++){
+        const a = i>=bpp ? row[i-bpp] : 0;
+        row[i] = (row[i] + ((a+prev[i])>>1)) & 0xFF;
+      }
+    } else if (ftype === 4){
+      for (let i=0;i<stride;i++){
+        const a = i>=bpp ? row[i-bpp] : 0, bb = prev[i], c = i>=bpp ? prev[i-bpp] : 0;
+        const pr0 = a+bb-c;
+        const pa = Math.abs(pr0-a), pb = Math.abs(pr0-bb), pc = Math.abs(pr0-c);
+        const pr = (pa<=pb && pa<=pc) ? a : (pb<=pc ? bb : c);
+        row[i] = (row[i] + pr) & 0xFF;
+      }
+    }
+    rows.push(row);
+    prev = row;
+  }
+  return { width, height, rows };
+}
+
+// Standaard Adobe AFM-glyfbreedtes (in 1/1000 em) voor de basis-14 PDF-
+// fonts Helvetica en Helvetica-Bold. Publiek/standaard lettertype-metadata,
+// geen embedding nodig — elke PDF-viewer kent deze fonts intrinsiek.
+const PDF_FONT_WIDTHS = {
+  Helvetica: {
+    32:278,33:278,34:355,35:556,36:556,37:889,38:667,39:191,40:333,41:333,
+    42:389,43:584,44:278,45:333,46:278,47:278,
+    48:556,49:556,50:556,51:556,52:556,53:556,54:556,55:556,56:556,57:556,
+    58:278,59:278,60:584,61:584,62:584,63:556,64:1015,
+    65:667,66:667,67:722,68:722,69:667,70:611,71:778,72:722,73:278,74:500,
+    75:667,76:556,77:833,78:722,79:778,80:667,81:778,82:722,83:667,84:611,
+    85:722,86:667,87:944,88:667,89:667,90:611,
+    91:278,92:278,93:278,94:469,95:556,96:333,
+    97:556,98:556,99:500,100:556,101:556,102:278,103:556,104:556,105:222,
+    106:222,107:500,108:222,109:833,110:556,111:556,112:556,113:556,114:333,
+    115:500,116:278,117:556,118:500,119:722,120:500,121:500,122:500,
+    123:334,124:260,125:334,126:584,160:278,8364:556
+  },
+  "Helvetica-Bold": {
+    32:278,33:333,34:474,35:556,36:556,37:889,38:722,39:238,40:333,41:333,
+    42:389,43:584,44:278,45:333,46:278,47:278,
+    48:556,49:556,50:556,51:556,52:556,53:556,54:556,55:556,56:556,57:556,
+    58:333,59:333,60:584,61:584,62:584,63:611,64:975,
+    65:722,66:722,67:722,68:722,69:667,70:611,71:778,72:722,73:278,74:556,
+    75:722,76:611,77:833,78:722,79:778,80:667,81:778,82:722,83:667,84:611,
+    85:722,86:667,87:944,88:667,89:667,90:611,
+    91:333,92:278,93:333,94:584,95:556,96:333,
+    97:556,98:611,99:556,100:611,101:556,102:333,103:611,104:611,105:278,
+    106:278,107:556,108:278,109:889,110:611,111:611,112:611,113:611,114:389,
+    115:556,116:333,117:611,118:556,119:778,120:556,121:556,122:500,
+    123:389,124:280,125:389,126:584,160:278,8364:556
+  }
+};
+const PDF_DEFAULT_CHAR_WIDTH = 556;
+
+function pdfCharWidth(fontName, codePoint){
+  const table = PDF_FONT_WIDTHS[fontName] || PDF_FONT_WIDTHS.Helvetica;
+  return table[codePoint] != null ? table[codePoint] : PDF_DEFAULT_CHAR_WIDTH;
+}
+function pdfTextWidth(str, fontName, sizePt){
+  let units = 0;
+  for (let i=0;i<str.length;i++) units += pdfCharWidth(fontName, str.charCodeAt(i));
+  return units / 1000 * sizePt;
+}
+// Woordomslag op echte glyfbreedtes, niet op een gok/gemiddelde.
+function pdfWrapText(str, maxWidthPt, fontName, sizePt){
+  const words = str.split(/\s+/).filter(Boolean);
+  const lines = [];
+  let current = "";
+  for (const word of words){
+    const candidate = current ? current + " " + word : word;
+    if (pdfTextWidth(candidate, fontName, sizePt) > maxWidthPt && current){
+      lines.push(current);
+      current = word;
+    } else {
+      current = candidate;
+    }
+  }
+  if (current) lines.push(current);
+  return lines;
+}
+
+const PDF_WINANSI_SPECIAL = { 0x20AC:0x80, 0x2018:0x91, 0x2019:0x92, 0x201C:0x93, 0x201D:0x94, 0x2013:0x96, 0x2014:0x97 };
+function toWinAnsiChar(codePoint){
+  if (PDF_WINANSI_SPECIAL[codePoint] != null) return String.fromCharCode(PDF_WINANSI_SPECIAL[codePoint]);
+  if (codePoint <= 0xFF) return String.fromCharCode(codePoint);
+  return "?"; // niet-ondersteund teken (buiten Latin-1) — nette fallback i.p.v. corrupte PDF
+}
+function encodeWinAnsi(str){
+  let out = "";
+  for (let i=0;i<str.length;i++) out += toWinAnsiChar(str.charCodeAt(i));
+  return out;
+}
+function escapePdfLiteral(str){
+  return str.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
+}
+
+// Bouwt de content-stream (tekst/lijnen/afbeelding) voor één A4-pagina.
+// Alle y-coördinaten die deze builder ontvangt zijn "vanaf de bovenkant"
+// (zoals in CSS) en worden hier omgerekend naar PDF's coördinatenstelsel
+// (oorsprong linksonder).
+function createPdfContentBuilder(pageHeight){
+  let ops = "";
+  const fontName = (f) => f === "F2" ? "Helvetica-Bold" : "Helvetica";
+
+  function text(x, yTop, str, { font = "F1", size = 10, align = "left", gray = 0 } = {}){
+    const win = encodeWinAnsi(str);
+    let x2 = x;
+    if (align === "right") x2 = x - pdfTextWidth(win, fontName(font), size);
+    else if (align === "center") x2 = x - pdfTextWidth(win, fontName(font), size) / 2;
+    const y = pageHeight - yTop;
+    ops += `${pdfNum(gray)} g\nBT /${font} ${pdfNum(size)} Tf ${pdfNum(x2)} ${pdfNum(y)} Td (${escapePdfLiteral(win)}) Tj ET\n`;
+  }
+
+  function paragraph(x, yTop, str, maxWidth, { font = "F1", size = 9.5, lineHeight = 12.5, gray = 0.15, align = "left" } = {}){
+    const lines = pdfWrapText(str, maxWidth, fontName(font), size);
+    let y = yTop;
+    for (const ln of lines){ text(x, y, ln, { font, size, align, gray }); y += lineHeight; }
+    return y;
+  }
+
+  function ruleLine(x1, yTop1, x2, yTop2, { width = 0.75, gray = 0.85 } = {}){
+    const y1 = pageHeight - yTop1, y2 = pageHeight - yTop2;
+    ops += `${pdfNum(gray)} G\n${pdfNum(width)} w\n${pdfNum(x1)} ${pdfNum(y1)} m ${pdfNum(x2)} ${pdfNum(y2)} l S\n`;
+  }
+
+  function image(x, yTop, w, h){
+    const y = pageHeight - yTop - h;
+    ops += `q ${pdfNum(w)} 0 0 ${pdfNum(h)} ${pdfNum(x)} ${pdfNum(y)} cm /Im0 Do Q\n`;
+  }
+
+  return {
+    text, paragraph, line: ruleLine, image,
+    textWidth: (str, font, size) => pdfTextWidth(encodeWinAnsi(str), fontName(font), size),
+    get ops(){ return ops; }
+  };
+}
+
+// Assembleert de losse onderdelen tot een geldig PDF 1.4-bestand: objecten,
+// xref-tabel (met correcte byte-offsets) en trailer.
+async function assemblePdf({ pageWidth, pageHeight, contentOps, image }){
+  const OBJ_CATALOG = 1, OBJ_PAGES = 2, OBJ_PAGE = 3, OBJ_CONTENT = 4;
+  const OBJ_FONT_REG = 5, OBJ_FONT_BOLD = 6, OBJ_IMAGE = 7, OBJ_SMASK = 8;
+  const hasImage = !!image;
+
+  const resourcesDict = hasImage
+    ? `<< /Font << /F1 ${OBJ_FONT_REG} 0 R /F2 ${OBJ_FONT_BOLD} 0 R >> /XObject << /Im0 ${OBJ_IMAGE} 0 R >> >>`
+    : `<< /Font << /F1 ${OBJ_FONT_REG} 0 R /F2 ${OBJ_FONT_BOLD} 0 R >> >>`;
+
+  const contentCompressed = await pdfDeflate(strToBytes(contentOps));
+  const parts = [];
+
+  parts.push({ num: OBJ_CATALOG, bytes: strToBytes(`<< /Type /Catalog /Pages ${OBJ_PAGES} 0 R >>`) });
+  parts.push({ num: OBJ_PAGES, bytes: strToBytes(`<< /Type /Pages /Kids [${OBJ_PAGE} 0 R] /Count 1 >>`) });
+  parts.push({ num: OBJ_PAGE, bytes: strToBytes(
+    `<< /Type /Page /Parent ${OBJ_PAGES} 0 R /MediaBox [0 0 ${pdfNum(pageWidth)} ${pdfNum(pageHeight)}] /Resources ${resourcesDict} /Contents ${OBJ_CONTENT} 0 R >>`
+  ) });
+  parts.push({ num: OBJ_CONTENT, bytes: concatBytes([
+    strToBytes(`<< /Length ${contentCompressed.length} /Filter /FlateDecode >>\nstream\n`),
+    contentCompressed,
+    strToBytes(`\nendstream`)
+  ]) });
+  parts.push({ num: OBJ_FONT_REG, bytes: strToBytes(`<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>`) });
+  parts.push({ num: OBJ_FONT_BOLD, bytes: strToBytes(`<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>`) });
+
+  if (hasImage){
+    const rgbCompressed = await pdfDeflate(image.rgb);
+    const alphaCompressed = await pdfDeflate(image.alpha);
+    parts.push({ num: OBJ_IMAGE, bytes: concatBytes([
+      strToBytes(`<< /Type /XObject /Subtype /Image /Width ${image.width} /Height ${image.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /FlateDecode /SMask ${OBJ_SMASK} 0 R /Length ${rgbCompressed.length} >>\nstream\n`),
+      rgbCompressed, strToBytes(`\nendstream`)
+    ]) });
+    parts.push({ num: OBJ_SMASK, bytes: concatBytes([
+      strToBytes(`<< /Type /XObject /Subtype /Image /Width ${image.width} /Height ${image.height} /ColorSpace /DeviceGray /BitsPerComponent 8 /Filter /FlateDecode /Length ${alphaCompressed.length} >>\nstream\n`),
+      alphaCompressed, strToBytes(`\nendstream`)
+    ]) });
+  }
+
+  parts.sort((a,b) => a.num - b.num);
+
+  const headerBytes = concatBytes([
+    strToBytes(`%PDF-1.4\n%`), new Uint8Array([0xE2,0xE3,0xCF,0xD3]), strToBytes(`\n`)
+  ]);
+
+  const chunks = [headerBytes];
+  const offsets = {};
+  let running = headerBytes.length;
+  for (const p of parts){
+    offsets[p.num] = running;
+    const objHead = strToBytes(`${p.num} 0 obj\n`), objTail = strToBytes(`\nendobj\n`);
+    chunks.push(objHead, p.bytes, objTail);
+    running += objHead.length + p.bytes.length + objTail.length;
+  }
+
+  const xrefOffset = running;
+  const maxNum = Math.max(...parts.map(p => p.num));
+  let xref = `xref\n0 ${maxNum+1}\n0000000000 65535 f \n`;
+  for (let nObj=1; nObj<=maxNum; nObj++){
+    const off = offsets[nObj];
+    xref += off == null ? `0000000000 00000 f \n` : `${String(off).padStart(10,"0")} 00000 n \n`;
+  }
+  const trailer = `trailer\n<< /Size ${maxNum+1} /Root ${OBJ_CATALOG} 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+  chunks.push(strToBytes(xref), strToBytes(trailer));
+
+  return concatBytes(chunks);
+}
+
+const PDF_PAGE_W = 595.28, PDF_PAGE_H = 841.89;
+const PDF_MARGIN = 50, PDF_RIGHT_X = PDF_PAGE_W - PDF_MARGIN;
+const PDF_COL_VAT = 400, PDF_COL_PRICE = 475, PDF_COL_AMOUNT = PDF_RIGHT_X;
+const PDF_COL_DESC_END = PDF_COL_VAT - 15;
+
+// Tekent de volledige factuur (zelfde inhoud/volgorde als de HTML-preview)
+// als PDF-tekenopdrachten op de contentbuilder `b`.
+function renderInvoicePdfOps(b, ctx){
+  const { company, addressLines, invoiceMeta, eventLine, lines, totals, paymentText, logo } = ctx;
+
+  let logoBottom = PDF_MARGIN;
+  if (logo){
+    const h = 34, w = h * (logo.width / logo.height);
+    b.image(PDF_MARGIN, PDF_MARGIN, w, h);
+    logoBottom = PDF_MARGIN + h;
+  } else {
+    b.text(PDF_MARGIN, PDF_MARGIN + 16, company.name || "Lachbox", { font: "F2", size: 18 });
+    logoBottom = PDF_MARGIN + 22;
+  }
+  b.text(PDF_RIGHT_X, PDF_MARGIN + 24, "FACTUUR", { font: "F2", size: 25, align: "right" });
+  b.text(PDF_RIGHT_X, PDF_MARGIN + 40, `Factuurnr. ${invoiceMeta.number}`, { size: 9.5, align: "right", gray: 0.35 });
+  b.text(PDF_RIGHT_X, PDF_MARGIN + 53, `Datum: ${invoiceMeta.dateDisplay}`, { size: 9.5, align: "right", gray: 0.35 });
+
+  let y = Math.max(logoBottom, PDF_MARGIN + 53) + 32;
+  const blockTop = y;
+  b.text(PDF_MARGIN, y, "FACTUUR AAN", { size: 8, gray: 0.55, font: "F2" });
+  let ly = y + 16;
+  for (const ln of addressLines){ b.text(PDF_MARGIN, ly, ln, { size: 10.5, gray: 0.1 }); ly += 14; }
+
+  b.text(PDF_RIGHT_X, blockTop, "FACTUURGEGEVENS", { size: 8, gray: 0.55, font: "F2", align: "right" });
+  let ry = blockTop + 16;
+  const metaRows = [
+    ["Factuurdatum", invoiceMeta.dateDisplay],
+    ["Vervaldatum", invoiceMeta.dueDateDisplay],
+    ["Betaaltermijn", invoiceMeta.paymentTermText]
+  ];
+  if (invoiceMeta.reference) metaRows.push(["Referentie", invoiceMeta.reference]);
+  for (const [k,v] of metaRows){ b.text(PDF_RIGHT_X, ry, `${k}: ${v}`, { size: 9.5, gray: 0.25, align: "right" }); ry += 14; }
+
+  y = Math.max(ly, ry) + 10;
+
+  if (eventLine){
+    b.line(PDF_MARGIN, y, PDF_RIGHT_X, y, { gray: 0.85, width: 0.75 });
+    y += 14;
+    b.text(PDF_MARGIN, y, eventLine, { size: 9, gray: 0.45 });
+    y += 8;
+    b.line(PDF_MARGIN, y, PDF_RIGHT_X, y, { gray: 0.85, width: 0.75 });
+    y += 22;
+  } else {
+    y += 12;
+  }
+
+  b.text(PDF_MARGIN, y, "OMSCHRIJVING", { size: 8, gray: 0.55, font: "F2" });
+  b.text(PDF_COL_VAT, y, "BTW", { size: 8, gray: 0.55, font: "F2", align: "right" });
+  b.text(PDF_COL_PRICE, y, "PRIJS", { size: 8, gray: 0.55, font: "F2", align: "right" });
+  b.text(PDF_COL_AMOUNT, y, "BEDRAG", { size: 8, gray: 0.55, font: "F2", align: "right" });
+  y += 6;
+  b.line(PDF_MARGIN, y, PDF_RIGHT_X, y, { gray: 0.1, width: 1 });
+  y += 16;
+
+  if (lines.length === 0){
+    b.text(PDF_MARGIN, y, "Nog geen factuurregels toegevoegd.", { size: 10, gray: 0.6 });
+    y += 20;
+  }
+
+  for (const item of lines){
+    const maxDescWidth = PDF_COL_DESC_END - PDF_MARGIN;
+    const descLines = b.textWidth(item.description, "F2", 10.5) > maxDescWidth
+      ? pdfWrapText(item.description, maxDescWidth, "Helvetica-Bold", 10.5)
+      : [item.description];
+    for (let i=0;i<descLines.length;i++){
+      b.text(PDF_MARGIN, y + i*13, descLines[i], { size: 10.5, gray: 0.1, font: "F2" });
+    }
+    let rowBottom = y + (descLines.length-1)*13;
+
+    b.text(PDF_COL_VAT, y, item.vatLabel, { size: 10, gray: 0.15, align: "right" });
+    b.text(PDF_COL_PRICE, y, item.priceLabel, { size: 10, gray: 0.15, align: "right" });
+    b.text(PDF_COL_AMOUNT, y, item.amountLabel, { size: 10, gray: 0.1, align: "right" });
+
+    for (const sub of (item.subtextLines || [])){
+      rowBottom += 13;
+      b.text(PDF_MARGIN, rowBottom, sub, { size: 8.5, gray: 0.5 });
+    }
+    y = rowBottom + 12;
+    b.line(PDF_MARGIN, y, PDF_RIGHT_X, y, { gray: 0.88, width: 0.6 });
+    y += 16;
+  }
+
+  const totalsX0 = PDF_RIGHT_X - 230;
+  b.text(totalsX0, y, "Subtotaal excl. BTW", { size: 9.5, gray: 0.4 });
+  b.text(PDF_COL_AMOUNT, y, formatCurrency(totals.totalExcl), { size: 9.5, gray: 0.15, align: "right" });
+  y += 15;
+  for (const v of totals.vatBreakdown){
+    if (v.vatAmount === 0 && v.exclBase === 0) continue;
+    b.text(totalsX0, y, `BTW ${v.rate}% over ${formatCurrency(v.exclBase)}`, { size: 9.5, gray: 0.4 });
+    b.text(PDF_COL_AMOUNT, y, formatCurrency(v.vatAmount), { size: 9.5, gray: 0.15, align: "right" });
+    y += 15;
+  }
+  y += 4;
+  b.line(totalsX0, y, PDF_RIGHT_X, y, { gray: 0.1, width: 1.1 });
+  y += 16;
+  b.text(totalsX0, y, "Totaal", { size: 12.5, gray: 0, font: "F2" });
+  b.text(PDF_COL_AMOUNT, y, formatCurrency(totals.totalIncl), { size: 12.5, gray: 0, font: "F2", align: "right" });
+  y += 34;
+
+  b.text(PDF_MARGIN, y, "BETAALINSTRUCTIE", { size: 8, gray: 0.55, font: "F2" });
+  y += 14;
+  y = b.paragraph(PDF_MARGIN, y, paymentText, PDF_RIGHT_X - PDF_MARGIN, { size: 9.5, gray: 0.15, lineHeight: 13 });
+
+  const footerY = PDF_PAGE_H - 40;
+  b.line(PDF_MARGIN, footerY - 14, PDF_RIGHT_X, footerY - 14, { gray: 0.85, width: 0.75 });
+  const footerText = [company.name, company.addressLine, `KvK ${company.kvk}`, `BTW ${company.vatNumber}`, company.iban]
+    .filter(Boolean).join("   ·   ");
+  b.text((PDF_MARGIN+PDF_RIGHT_X)/2, footerY, footerText, { size: 8, gray: 0.55, align: "center" });
+}
+
+function base64ToBytes(b64){
+  const binStr = atob(b64);
+  const bytes = new Uint8Array(binStr.length);
+  for (let i=0;i<binStr.length;i++) bytes[i] = binStr.charCodeAt(i);
+  return bytes;
+}
+
+// Ontleedt het geconfigureerde logo (alleen data:image/png;base64,... wordt
+// ondersteund) tot losse RGB- en alfa-kanalen, klaar om als PDF-afbeelding
+// (met SMask voor transparantie) ingebed te worden. Geeft null terug als er
+// geen (herkenbaar) logo is ingesteld — dan valt de PDF terug op tekst.
+async function getPdfLogoImage(){
+  const url = companySettings.logoUrl;
+  if (!url || !url.startsWith("data:image/png;base64,")) return null;
+  const pngBytes = base64ToBytes(url.slice("data:image/png;base64,".length));
+  const { width, height, rows } = await decodePngToRows(pngBytes);
+  const rgb = new Uint8Array(width * height * 3);
+  const alpha = new Uint8Array(width * height);
+  for (let y=0; y<height; y++){
+    const row = rows[y];
+    for (let x=0; x<width; x++){
+      const si = x*4, di = x*3;
+      rgb[y*width*3+di] = row[si];
+      rgb[y*width*3+di+1] = row[si+1];
+      rgb[y*width*3+di+2] = row[si+2];
+      alpha[y*width+x] = row[si+3];
+    }
+  }
+  return { width, height, rgb, alpha };
+}
+
+function buildPdfExportContext(calc){
+  const inv = state.invoice;
+  return {
+    company: {
+      name: companySettings.name,
+      addressLine: [companySettings.street, companySettings.city].filter(Boolean).join(", "),
+      kvk: companySettings.kvk,
+      vatNumber: companySettings.vatNumber,
+      iban: companySettings.iban
+    },
+    addressLines: getCustomerAddressLines(state.customer),
+    invoiceMeta: {
+      number: inv.number || "—",
+      dateDisplay: formatDateDisplay(inv.date),
+      dueDateDisplay: formatDateDisplay(inv.dueDate),
+      paymentTermText: inv.paymentTermDays ? `${inv.paymentTermDays} dagen` : "",
+      reference: state.event.reference && state.event.reference.trim()
+    },
+    eventLine: buildEventLineText(),
+    lines: calc.lines.map(getLineDisplayParts),
+    totals: { totalExcl: calc.totalExcl, totalVat: calc.totalVat, totalIncl: calc.totalIncl, vatBreakdown: calc.vatBreakdown },
+    paymentText: buildPaymentText()
+  };
+}
+
+function triggerBlobDownload(bytes, filename){
+  const blob = new Blob([bytes], { type: "application/pdf" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+async function downloadInvoicePdf(){
+  const errors = validateInvoice();
+  if (errors.length > 0){
+    showValidationErrors(errors);
+    return;
+  }
+  const btn = el("btnDownloadPdf");
+  const originalLabel = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "PDF genereren…";
+  try{
+    const calc = calculateInvoice(state);
+    const ctx = buildPdfExportContext(calc);
+    let logo = null;
+    try{ logo = await getPdfLogoImage(); }
+    catch(e){ console.warn("Logo kon niet in de PDF worden ingebed, tekst-fallback gebruikt:", e); }
+    const b = createPdfContentBuilder(PDF_PAGE_H);
+    renderInvoicePdfOps(b, Object.assign({}, ctx, { logo }));
+    const pdfBytes = await assemblePdf({ pageWidth: PDF_PAGE_W, pageHeight: PDF_PAGE_H, contentOps: b.ops, image: logo });
+    triggerBlobDownload(pdfBytes, updateFilenamePreview());
+    showToast("Factuur gedownload.", "success");
+  }catch(e){
+    console.error(e);
+    showToast("Downloaden van de PDF is mislukt: " + e.message, "error");
+  }finally{
+    btn.disabled = false;
+    btn.textContent = originalLabel;
+  }
 }
 
 
