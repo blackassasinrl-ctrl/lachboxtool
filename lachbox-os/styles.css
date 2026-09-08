@@ -313,6 +313,98 @@ label{ display:block; font-size:10.5px; font-weight:600; letter-spacing:.02em; c
 .extras-row{ display:grid; grid-template-columns: 1fr 110px 30px; gap:8px; align-items:center; }
 .booking-total{ display:flex; justify-content:space-between; font-weight:800; font-size:15px; margin-top:14px; padding-top:12px; border-top:1px solid var(--line); }
 
+/* ---------- Facturen: regel-editor (line cards) ---------- */
+.component-select{ margin-bottom:12px; }
+.component-select select{ width:100%; }
+.lines-list{ display:flex; flex-direction:column; gap:8px; margin-bottom:10px; }
+.line-card{ border:1px solid var(--line); border-radius:3px; padding:11px; background:var(--panel, #fafafa); }
+.line-card.discount{ background:#fbfbf8; border-style:dashed; }
+.line-card-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+.line-type-badge{ font-size:10px; text-transform:uppercase; letter-spacing:.06em; font-weight:700; color:var(--faint); }
+.line-card-actions{ display:flex; gap:4px; }
+.line-card .field{ margin-bottom:7px; }
+.line-grid{ display:grid; grid-template-columns: repeat(4, 1fr); gap:7px; }
+.line-grid .field.span-2{ grid-column: span 2; }
+.amount-readout{ font-family:var(--mono); font-size:12.5px; font-weight:700; text-align:right; padding-top:5px; }
+.vat-mode-toggle{ display:flex; border:1px solid #d6d6d6; border-radius:var(--radius); overflow:hidden; }
+.vat-mode-toggle button{ flex:1; border:none; background:#fff; padding:6px 4px; font-size:11px; cursor:pointer; color:#555; }
+.vat-mode-toggle button.active{ background:#111; color:#fff; }
+.add-line-buttons{ display:flex; gap:8px; }
+.add-line-buttons .btn{ flex:1; justify-content:center; }
+
+@media (max-width: 700px){
+  .line-grid{ grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ---------- Factuur-editor lay-out ---------- */
+.invoice-editor-grid{ display:grid; grid-template-columns: 460px 1fr; gap:20px; align-items:start; }
+.invoice-editor-form{ min-width:0; }
+.invoice-editor-preview{ position:sticky; top:16px; }
+.invoice-actions{ display:flex; flex-direction:column; gap:8px; }
+.invoice-actions .data-actions{ flex-wrap:wrap; }
+.invoice-summary-row{ margin-bottom:18px; }
+.cell-danger{ color:var(--danger); font-weight:600; }
+@media (max-width: 1200px){
+  .invoice-editor-grid{ grid-template-columns: 1fr; }
+  .invoice-editor-preview{ position:static; }
+}
+
+/* ---------- A4-factuurdocument (identiek aan de losse factuurtool) ---------- */
+.invoice-preview-wrapper{ display:flex; justify-content:center; overflow-x:auto; padding:0 0 24px; }
+#invoicePreview.a4{
+  width:210mm; min-height:297mm; background:#fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,.08), 0 12px 32px rgba(0,0,0,.10);
+  padding:18mm 16mm; flex-shrink:0; color:#111; font-size:14px;
+}
+.inv-header{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:34px; }
+.inv-logo{ font-size:22px; font-weight:800; letter-spacing:.01em; }
+.inv-logo img{ height:42px; width:auto; display:block; }
+.inv-title{ text-align:right; }
+.inv-title h1{ font-size:30px; letter-spacing:.06em; font-weight:800; }
+.inv-title .inv-meta-line{ font-size:12px; color:#444; margin-top:4px; }
+.inv-title .inv-meta-line b{ color:#111; }
+.inv-parties{ display:flex; justify-content:space-between; gap:24px; margin-bottom:30px; }
+.inv-block{ font-size:12.5px; }
+.inv-block .block-label{ font-size:10px; text-transform:uppercase; letter-spacing:.08em; color:#999; font-weight:700; margin-bottom:6px; }
+.inv-block .line{ line-height:1.55; }
+.inv-block.to{ max-width:60%; }
+.inv-block.meta{ text-align:right; min-width:180px; }
+.inv-block.meta .meta-row{ display:flex; justify-content:space-between; gap:16px; padding:2px 0; }
+.inv-block.meta .meta-row .k{ color:#888; }
+.inv-block.meta .meta-row .v{ font-weight:600; }
+.inv-event-line{ font-size:11.5px; color:#666; margin-bottom:22px; border-top:1px solid var(--line); border-bottom:1px solid var(--line); padding:8px 0; }
+table.inv-table{ width:100%; border-collapse:collapse; margin-bottom:8px; }
+table.inv-table thead th{ text-align:left; font-size:10px; text-transform:uppercase; letter-spacing:.07em; color:#888; border-bottom:1px solid var(--line-strong); padding:0 4px 8px; font-weight:700; }
+table.inv-table thead th.num{ text-align:right; }
+table.inv-table tbody td{ padding:10px 4px; border-bottom:1px solid var(--line); font-size:12.5px; vertical-align:top; }
+table.inv-table tbody td.num{ text-align:right; font-variant-numeric: tabular-nums; white-space:nowrap; }
+table.inv-table tbody tr.discount-row td{ color:#555; font-style:italic; }
+.desc-main{ font-weight:600; }
+.desc-sub{ font-size:11px; color:#888; margin-top:2px; font-style:normal; }
+.inv-totals{ display:flex; justify-content:flex-end; margin-top:14px; }
+.inv-totals .totals-box{ width:280px; }
+.totals-row{ display:flex; justify-content:space-between; padding:5px 0; font-size:12.5px; }
+.totals-row .k{ color:#666; }
+.totals-row.grand{ border-top:1.5px solid #111; margin-top:6px; padding-top:10px; font-size:15px; font-weight:800; }
+.inv-footer{ margin-top:46px; }
+.inv-payment{ font-size:12px; border-top:1px solid var(--line); padding-top:14px; margin-bottom:18px; }
+.inv-payment .pay-label{ font-size:10px; text-transform:uppercase; letter-spacing:.07em; color:#999; font-weight:700; margin-bottom:6px; }
+.inv-companyfooter{ font-size:10.5px; color:#999; text-align:center; border-top:1px solid var(--line); padding-top:12px; }
+
+/* ---------- Print: alleen de factuur, niets van de app-shell ----------
+   .no-print wordt gezet op de sidebar/topbar (index.html) en, alleen op de
+   factuur-editorpagina, op de terugknop/header/formulierkolom (invoices.js).
+   Overige pagina's hebben (nog) geen printweergave nodig. */
+@media print{
+  body{ background:#fff; }
+  .no-print{ display:none !important; }
+  .app-content{ padding:0 !important; }
+  .invoice-editor-grid{ display:block !important; }
+  .invoice-preview-wrapper{ padding:0; overflow:visible; justify-content:flex-start; }
+  #invoicePreview.a4{ box-shadow:none; width:auto; min-height:auto; margin:0; padding:0; }
+  @page{ size: A4 portrait; margin: 16mm 15mm; }
+}
+
 /* ---------- Responsive ---------- */
 @media (max-width: 980px){
   .sidebar{ position:fixed; left:0; top:0; z-index:50; transform:translateX(-100%); transition:transform .18s ease; box-shadow:0 0 30px rgba(0,0,0,.15); }

@@ -218,7 +218,7 @@ function askConfirm(title, message, opts){
    elke module modals tonen zonder dat de shell ze vooraf hoeft te kennen. */
 function openModal(opts){
   opts = opts || {};
-  const overlay = make("div", "modal-overlay");
+  const overlay = make("div", "modal-overlay no-print");
   const modal = make("div", "modal" + (opts.size === "large" ? " modal-large" : ""));
   const header = make("div", "modal-header");
   header.appendChild(make("h2", null, opts.title || ""));

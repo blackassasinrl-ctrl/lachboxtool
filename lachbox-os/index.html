@@ -9,7 +9,7 @@
 <body>
 
 <div class="app-shell">
-  <aside class="sidebar" id="sidebar">
+  <aside class="sidebar no-print" id="sidebar">
     <div class="sidebar-brand">
       <img id="sidebarLogo" alt="Lachbox">
       <span class="brand-name">Lachbox OS</span>
@@ -18,7 +18,7 @@
   </aside>
 
   <div class="app-main">
-    <div class="topbar">
+    <div class="topbar no-print">
       <button class="sidebar-toggle" id="btnToggleSidebar" aria-label="Menu">☰</button>
       <span class="brand-name">Lachbox OS</span>
     </div>
@@ -26,9 +26,9 @@
   </div>
 </div>
 
-<div class="toast-container" id="toastContainer"></div>
+<div class="toast-container no-print" id="toastContainer"></div>
 
-<div class="modal-overlay" id="confirmModal" hidden>
+<div class="modal-overlay no-print" id="confirmModal" hidden>
   <div class="modal">
     <h2 id="confirmTitle">Weet je het zeker?</h2>
     <p id="confirmMessage"></p>
@@ -52,6 +52,8 @@
 <script src="js/crm.js"></script>
 <script src="js/checklists.js"></script>
 <script src="js/events.js"></script>
+<script src="js/pdf.js"></script>
+<script src="js/invoices.js"></script>
 <script src="js/settings.js"></script>
 <script src="app.js"></script>
 </body>

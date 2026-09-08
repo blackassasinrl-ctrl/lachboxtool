@@ -128,9 +128,9 @@ async function loadDemoData(){
   const sambeekTotals = utils().calculateInvoiceTotals(sambeekLines);
 
   const invoices = [
-    { id: utils().uuid(), isDemo: true, invoiceNumber: "20260801", customerId: jansen.id, eventId: events[0].id, issueDate: inDays(-3), dueDate: inDays(2), lines: jansenLines, subtotal: jansenTotals.totalExcl, vat: jansenTotals.totalVat, total: jansenTotals.totalIncl, paymentStatus: "verstuurd", paidDate: null, reference: "20260801" },
-    { id: utils().uuid(), isDemo: true, invoiceNumber: "20260702", customerId: peters.id, eventId: events[1].id, issueDate: inDays(-19), dueDate: inDays(-5), lines: petersLines, subtotal: petersTotals.totalExcl, vat: petersTotals.totalVat, total: petersTotals.totalIncl, paymentStatus: "betaald", paidDate: inDays(-6), reference: "20260702" },
-    { id: utils().uuid(), isDemo: true, invoiceNumber: "20260601", customerId: sambeek.id, eventId: events[2].id, issueDate: inDays(-59), dueDate: inDays(-45), lines: sambeekLines, subtotal: sambeekTotals.totalExcl, vat: sambeekTotals.totalVat, total: sambeekTotals.totalIncl, paymentStatus: "betaald", paidDate: inDays(-50), reference: "20260601" }
+    { id: utils().uuid(), isDemo: true, invoiceNumber: "20260801", customerId: jansen.id, eventId: events[0].id, issueDate: inDays(-3), dueDate: inDays(2), paymentTermDays: 14, lines: jansenLines, subtotal: jansenTotals.totalExcl, vat: jansenTotals.totalVat, total: jansenTotals.totalIncl, paymentStatus: "verstuurd", paidDate: null, reference: "20260801" },
+    { id: utils().uuid(), isDemo: true, invoiceNumber: "20260702", customerId: peters.id, eventId: events[1].id, issueDate: inDays(-19), dueDate: inDays(-5), paymentTermDays: 14, lines: petersLines, subtotal: petersTotals.totalExcl, vat: petersTotals.totalVat, total: petersTotals.totalIncl, paymentStatus: "betaald", paidDate: inDays(-6), reference: "20260702" },
+    { id: utils().uuid(), isDemo: true, invoiceNumber: "20260601", customerId: sambeek.id, eventId: events[2].id, issueDate: inDays(-59), dueDate: inDays(-45), paymentTermDays: 14, lines: sambeekLines, subtotal: sambeekTotals.totalExcl, vat: sambeekTotals.totalVat, total: sambeekTotals.totalIncl, paymentStatus: "betaald", paidDate: inDays(-50), reference: "20260601" }
   ];
   for (const i of invoices) await storage().saveInvoice(i);
 

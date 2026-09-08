@@ -696,8 +696,11 @@ function renderCustomerDetailPage(container, params){
     invoices.slice().sort((a,b) => (b.issueDate||"").localeCompare(a.issueDate||"")).forEach(inv => {
       const row = utils().make("div", "related-row");
       row.appendChild(utils().make("span", null, (inv.invoiceNumber || "Concept") + " · " + utils().formatCurrency(inv.total || 0)));
-      const cls = inv.paymentStatus === "betaald" ? "badge-success" : (inv.paymentStatus === "verstuurd" ? "badge-warning" : "badge-info");
-      row.appendChild(utils().make("span", "badge " + cls, inv.paymentStatus));
+      const label = LachboxOS.invoices ? LachboxOS.invoices.invoiceStatusLabel(inv) : inv.paymentStatus;
+      const cls = LachboxOS.invoices ? LachboxOS.invoices.invoiceStatusBadgeClass(inv) : "badge-info";
+      row.appendChild(utils().make("span", "badge " + cls, label));
+      row.style.cursor = "pointer";
+      row.addEventListener("click", () => nav().navigateTo("invoices/" + inv.id));
       list.appendChild(row);
     });
     invoicesPanel.appendChild(list);

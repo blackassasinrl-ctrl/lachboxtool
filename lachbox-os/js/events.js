@@ -31,6 +31,7 @@ function primaryInvoiceFor(eventId){
 function paymentBadgeInfo(eventId){
   const inv = primaryInvoiceFor(eventId);
   if (!inv) return { text: "Geen factuur", cls: "badge-info" };
+  if (LachboxOS.invoices) return { text: LachboxOS.invoices.invoiceStatusLabel(inv), cls: LachboxOS.invoices.invoiceStatusBadgeClass(inv) };
   if (inv.paymentStatus === "betaald") return { text: "Betaald", cls: "badge-success" };
   if (inv.paymentStatus === "verstuurd") return { text: "Verstuurd", cls: "badge-warning" };
   return { text: "Concept", cls: "badge-info" };
@@ -408,13 +409,29 @@ function renderEventDetailPage(container, params){
   [
     ["Offerte", lead ? lead.status : "Geen gekoppelde lead"],
     ["Factuur", invoice ? (invoice.invoiceNumber || "Concept") + " · " + utils().formatCurrency(invoice.total || 0) : "Nog geen factuur"],
-    ["Betaling", invoice ? invoice.paymentStatus : "—"]
+    ["Betaling", invoice ? LachboxOS.invoices.invoiceStatusLabel(invoice) : "—"]
   ].forEach(([k,v]) => {
     const row = utils().make("div", "kv-row");
     row.appendChild(utils().make("span", "kv-key", k));
     row.appendChild(utils().make("span", null, v));
     admin.appendChild(row);
   });
+  if (invoice){
+    const link = utils().make("a", "detail-back", "Bekijk factuur →");
+    link.href = "#/invoices/" + invoice.id;
+    link.style.marginTop = "8px";
+    admin.appendChild(link);
+  } else if (LachboxOS.invoices){
+    const makeInvoiceBtn = utils().make("button", "btn secondary small", "Factuur maken");
+    makeInvoiceBtn.type = "button";
+    makeInvoiceBtn.style.marginTop = "8px";
+    makeInvoiceBtn.addEventListener("click", async () => {
+      if (!event.customerId){ utils().showToast("Koppel eerst een klant aan dit event.", "error"); return; }
+      const created = await LachboxOS.invoices.createInvoiceFromEvent(event);
+      nav().navigateTo("invoices/" + created.id);
+    });
+    admin.appendChild(makeInvoiceBtn);
+  }
   page.appendChild(admin);
 
   // ---- NAZORG (alleen-lezen) ----
