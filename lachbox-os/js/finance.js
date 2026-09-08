@@ -200,7 +200,7 @@ function renderContent(container){
       tbody.appendChild(tr);
     });
     table.appendChild(tbody);
-    tablePanel.appendChild(table);
+    tablePanel.appendChild(utils().tableScrollWrap(table));
   }
   page.appendChild(tablePanel);
 

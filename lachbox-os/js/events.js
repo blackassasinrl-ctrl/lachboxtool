@@ -176,7 +176,7 @@ function renderEventsListPage(container){
       tbody.appendChild(tr);
     });
     table.appendChild(tbody);
-    content.appendChild(table);
+    content.appendChild(utils().tableScrollWrap(table));
   }
 
   searchInput.addEventListener("input", renderTable);

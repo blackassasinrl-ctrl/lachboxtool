@@ -124,6 +124,16 @@ function buildCustomerPicker(opts){
 /* ============================================================
    Lead: aanmaken/bewerken (modal) + Lead -> Event ("Boeking aanmaken")
    ============================================================ */
+// Leads hebben geen eigen detailroute (ze leven in de tabel/kanban op
+// crm/leads) — dit laat andere modules (globale zoekfunctie, dashboard-
+// acties) toch direct naar een specifieke lead springen, want openModal()
+// bouwt zijn eigen overlay los van de huidige pagina.
+function openLeadById(leadId){
+  const lead = state().cache.leads.find(l => l.id === leadId);
+  if (!lead){ utils().showToast("Deze lead bestaat niet (meer).", "error"); return; }
+  openLeadModal(lead, () => state().refreshLeads());
+}
+
 function openLeadModal(existingLead, onSaved){
   const isEdit = !!existingLead;
   const lead = existingLead ? Object.assign({}, existingLead) : {
@@ -395,7 +405,7 @@ function buildLeadsTable(leads, onChanged){
     tbody.appendChild(tr);
   });
   table.appendChild(tbody);
-  return table;
+  return utils().tableScrollWrap(table);
 }
 
 function buildLeadsKanban(leads, onChanged){
@@ -549,7 +559,7 @@ function renderCustomersListPage(container){
       tbody.appendChild(tr);
     });
     table.appendChild(tbody);
-    content.appendChild(table);
+    content.appendChild(utils().tableScrollWrap(table));
   }
 
   searchInput.addEventListener("input", render);
@@ -747,6 +757,6 @@ nav().registerRoute({ path: "crm/customers", label: "Klanten", icon: "▤", grou
 // :id-route: geen sidebar-item (navigation.js sluit :param-routes uit van de sidebar).
 nav().registerRoute({ path: "crm/customers/:id", render: (c, params) => renderCustomerDetailPage(c, params) });
 
-LachboxOS.crm = { openLeadModal, openCustomerQuickCreateModal, buildCustomerPicker };
+LachboxOS.crm = { openLeadModal, openLeadById, openCustomerQuickCreateModal, buildCustomerPicker };
 
 })();

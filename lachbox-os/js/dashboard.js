@@ -12,6 +12,7 @@
 window.LachboxOS = window.LachboxOS || {};
 const utils = () => LachboxOS.utils;
 const state = () => LachboxOS.state;
+const nav = () => LachboxOS.navigation;
 
 const OPEN_LEAD_STATUSES = ["Nieuw", "Contact opnemen", "Contact gehad", "Offerte maken", "Offerte verstuurd", "Opvolgen"];
 
@@ -67,9 +68,9 @@ function computeActions(){
     const customer = state().getCustomerById(inv.customerId);
     const naam = state().customerDisplayName(customer) || inv.invoiceNumber;
     if (days < 0){
-      actions.push({ text: `Factuur ${inv.invoiceNumber} (${naam}) is ${Math.abs(days)} dag${Math.abs(days)===1?"":"en"} verlopen`, level: "danger" });
+      actions.push({ text: `Factuur ${inv.invoiceNumber} (${naam}) is ${Math.abs(days)} dag${Math.abs(days)===1?"":"en"} verlopen`, level: "danger", onClick: () => nav().navigateTo("invoices/" + inv.id) });
     } else if (days <= 3){
-      actions.push({ text: `Factuur ${inv.invoiceNumber} (${naam}) verloopt over ${days} dag${days===1?"":"en"}`, level: "warning" });
+      actions.push({ text: `Factuur ${inv.invoiceNumber} (${naam}) verloopt over ${days} dag${days===1?"":"en"}`, level: "warning", onClick: () => nav().navigateTo("invoices/" + inv.id) });
     }
   });
 
@@ -80,7 +81,7 @@ function computeActions(){
     if (days != null && days >= 7){
       const customer = state().getCustomerById(lead.customerId);
       const naam = state().customerDisplayName(customer) || "onbekende klant";
-      actions.push({ text: `Lead ${naam} is ${days} dagen niet opgevolgd`, level: "warning" });
+      actions.push({ text: `Lead ${naam} is ${days} dagen niet opgevolgd`, level: "warning", onClick: () => { if (LachboxOS.crm) LachboxOS.crm.openLeadById(lead.id); } });
     }
   });
 
@@ -90,7 +91,7 @@ function computeActions(){
     if (!review || review.status === "niet_gevraagd"){
       const customer = state().getCustomerById(ev.customerId);
       const naam = state().customerDisplayName(customer) || ev.eventName || "klant";
-      actions.push({ text: `Review nog niet gevraagd voor ${naam}`, level: "info" });
+      actions.push({ text: `Review nog niet gevraagd voor ${naam}`, level: "info", onClick: () => nav().navigateTo("events/" + ev.id) });
     }
   });
 
@@ -105,7 +106,7 @@ function computeActions(){
       if (readiness.percent < 100){
         const customer = state().getCustomerById(ev.customerId);
         const naam = state().customerDisplayName(customer) || ev.eventName || "event";
-        actions.push({ text: `Event over ${days} dag${days===1?"":"en"} (${naam}) maar checklist is nog maar ${readiness.percent}%`, level: readiness.level === "red" ? "danger" : "warning" });
+        actions.push({ text: `Event over ${days} dag${days===1?"":"en"} (${naam}) maar checklist is nog maar ${readiness.percent}%`, level: readiness.level === "red" ? "danger" : "warning", onClick: () => nav().navigateTo("events/" + ev.id) });
       }
     });
   }
@@ -170,9 +171,10 @@ function renderContent(container){
   } else {
     const list = u.make("div", "action-list");
     actions.forEach(a => {
-      const row = u.make("div", "action-row action-" + a.level);
+      const row = u.make("div", "action-row action-" + a.level + (a.onClick ? " action-clickable" : ""));
       row.appendChild(u.make("span", "action-dot"));
       row.appendChild(u.make("span", null, a.text));
+      if (a.onClick) row.addEventListener("click", a.onClick);
       list.appendChild(row);
     });
     actionsPanel.appendChild(list);

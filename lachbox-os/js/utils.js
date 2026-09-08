@@ -139,18 +139,7 @@ function calculateInvoiceTotals(lines){
   return { lines: computedLines, itemSubtotalExcl: roundMoney(itemSubtotalExcl), totalExcl, totalVat, totalIncl, vatBreakdown };
 }
 
-/* ---------- Tekst / veiligheid ---------- */
-// Voor plekken waar we noodgedwongen HTML-strings samenstellen i.p.v.
-// DOM-nodes: nooit ongefilterde gebruikersinvoer erin zetten zonder dit.
-function escapeHtml(str){
-  return String(str == null ? "" : str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
+/* ---------- Tekst ---------- */
 function slugify(text){
   return (text || "")
     .normalize("NFD").replace(/[̀-ͯ]/g, "")
@@ -168,6 +157,14 @@ function make(tag, className, text){
 }
 function clear(node){
   while (node.firstChild) node.removeChild(node.firstChild);
+}
+// Data-tables kunnen breder zijn dan het scherm (veel kolommen, smalle
+// mobielweergave): dit laat de tabel zelf horizontaal scrollen in plaats
+// van de hele pagina breder te maken dan de viewport.
+function tableScrollWrap(table){
+  const wrap = make("div", "table-scroll");
+  wrap.appendChild(table);
+  return wrap;
 }
 
 /* ---------- Toasts ---------- */
@@ -288,8 +285,8 @@ LachboxOS.utils = {
   formatDateDisplay, formatDateLong, todayISO, daysBetween,
   MONTH_NAMES_NL, WEEKDAY_NAMES_NL,
   calcAmountsFromUnit, calculateInvoiceTotals,
-  escapeHtml, slugify,
-  el, make, clear,
+  slugify,
+  el, make, clear, tableScrollWrap,
   showToast, askConfirm, openModal,
   fieldRow, textField, selectField
 };

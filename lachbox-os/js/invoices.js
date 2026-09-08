@@ -926,37 +926,39 @@ const INVOICE_FILTERS = [
   { key: "verlopen", label: "Verlopen" }
 ];
 
+function openNewInvoiceModal(){
+  utils().openModal({
+    title: "Nieuwe factuur",
+    build(body, modal){
+      const picker = LachboxOS.crm.buildCustomerPicker({ autofocus: true });
+      body.appendChild(picker.el);
+      const footer = utils().make("div", "modal-footer");
+      const actions = utils().make("div", "modal-footer-actions");
+      const cancelBtn = utils().make("button", "btn secondary small", "Annuleren");
+      cancelBtn.type = "button"; cancelBtn.addEventListener("click", () => modal.close());
+      const okBtn = utils().make("button", "btn primary small", "Aanmaken");
+      okBtn.type = "button";
+      okBtn.addEventListener("click", async () => {
+        const customerId = picker.getValue();
+        if (!customerId){ utils().showToast("Kies of maak eerst een klant.", "error"); return; }
+        const invoice = await createInvoice({ customerId });
+        modal.close();
+        nav().navigateTo("invoices/" + invoice.id);
+      });
+      actions.appendChild(cancelBtn); actions.appendChild(okBtn);
+      footer.appendChild(actions);
+      body.appendChild(footer);
+    }
+  });
+}
+
 function renderInvoicesListPage(container){
   const page = utils().make("div", "page");
   const header = utils().make("div", "page-header");
   header.appendChild(utils().make("h1", "page-title", "Facturen"));
   const newBtn = utils().make("button", "btn primary", "+ Nieuwe factuur");
   newBtn.type = "button";
-  newBtn.addEventListener("click", () => {
-    utils().openModal({
-      title: "Nieuwe factuur",
-      build(body, modal){
-        const picker = LachboxOS.crm.buildCustomerPicker({ autofocus: true });
-        body.appendChild(picker.el);
-        const footer = utils().make("div", "modal-footer");
-        const actions = utils().make("div", "modal-footer-actions");
-        const cancelBtn = utils().make("button", "btn secondary small", "Annuleren");
-        cancelBtn.type = "button"; cancelBtn.addEventListener("click", () => modal.close());
-        const okBtn = utils().make("button", "btn primary small", "Aanmaken");
-        okBtn.type = "button";
-        okBtn.addEventListener("click", async () => {
-          const customerId = picker.getValue();
-          if (!customerId){ utils().showToast("Kies of maak eerst een klant.", "error"); return; }
-          const invoice = await createInvoice({ customerId });
-          modal.close();
-          nav().navigateTo("invoices/" + invoice.id);
-        });
-        actions.appendChild(cancelBtn); actions.appendChild(okBtn);
-        footer.appendChild(actions);
-        body.appendChild(footer);
-      }
-    });
-  });
+  newBtn.addEventListener("click", openNewInvoiceModal);
   header.appendChild(newBtn);
   page.appendChild(header);
 
@@ -1055,7 +1057,7 @@ function renderInvoicesListPage(container){
       tbody.appendChild(tr);
     });
     table.appendChild(tbody);
-    content.appendChild(table);
+    content.appendChild(utils().tableScrollWrap(table));
   }
   searchInput.addEventListener("input", renderTable);
   updatePills();
@@ -1067,7 +1069,7 @@ nav().registerRoute({ path: "invoices/:id", render: (c, params) => renderInvoice
 
 LachboxOS.invoices = {
   generateProvisionalInvoiceNumber, commitInvoiceNumber, parseInvoiceNumber,
-  createInvoice, createInvoiceFromEvent,
+  createInvoice, createInvoiceFromEvent, openNewInvoiceModal,
   invoiceStatusLabel, invoiceStatusBadgeClass, invoiceIsOverdue,
   renderInvoicePreview, downloadInvoicePdf, validateInvoice,
   getCustomerAddressLines, buildEventLineText, buildPaymentText

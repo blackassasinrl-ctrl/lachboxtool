@@ -30,6 +30,7 @@ async function boot(){
     utils.el("appContent").addEventListener("click", () => sidebar.classList.remove("open"));
   }
 
+  if (LachboxOS.search) LachboxOS.search.init();
   LachboxOS.navigation.init();
 }
 

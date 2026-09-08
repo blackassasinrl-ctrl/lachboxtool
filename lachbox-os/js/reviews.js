@@ -193,7 +193,7 @@ function renderReviewsPage(container){
     const tbody = document.createElement("tbody");
     rows.forEach(r => tbody.appendChild(buildRow(r, renderTable)));
     table.appendChild(tbody);
-    content.appendChild(table);
+    content.appendChild(utils().tableScrollWrap(table));
   }
   searchInput.addEventListener("input", renderTable);
   updatePills();
