@@ -162,6 +162,7 @@ async function saveEvent(event){
 async function deleteEvent(id){ return remove("events", id); }
 
 /* ---------- Checklists ---------- */
+async function getChecklists(){ return getAll("checklists"); }
 async function getChecklist(id){ return getById("checklists", id); }
 async function getChecklistByEvent(eventId){
   const rows = await getByIndex("checklists", "eventId", eventId);
@@ -307,7 +308,7 @@ LachboxOS.storage = {
   getCustomers, getCustomer, saveCustomer, deleteCustomer,
   getLeads, getLead, getLeadsByCustomer, saveLead, deleteLead,
   getEvents, getEvent, getEventsByCustomer, saveEvent, deleteEvent,
-  getChecklist, getChecklistByEvent, saveChecklist, deleteChecklist,
+  getChecklists, getChecklist, getChecklistByEvent, saveChecklist, deleteChecklist,
   getInvoices, getInvoice, getInvoicesByCustomer, getInvoicesByEvent, saveInvoice, deleteInvoice,
   getReviews, getReview, getReviewByEvent, saveReview, deleteReview,
   getSettings, saveSettings, defaultSettings,

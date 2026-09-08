@@ -274,6 +274,45 @@ label{ display:block; font-size:10.5px; font-weight:600; letter-spacing:.02em; c
   .kanban-board{ grid-template-columns: repeat(2, minmax(160px,1fr)); }
 }
 
+/* ---------- Events: filterpillen ---------- */
+.filter-pills{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:16px; }
+.filter-pill{
+  border:1px solid #d6d6d6; background:#fff; color:#444; padding:6px 12px; border-radius:20px;
+  font-size:12px; font-weight:600; cursor:pointer;
+}
+.filter-pill:hover{ border-color:#111; }
+.filter-pill.active{ background:#111; color:#fff; border-color:#111; }
+
+/* ---------- Gereedheidsscore ---------- */
+.section-heading-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:14px; flex-wrap:wrap; }
+.section-heading-row .section-heading{ margin-bottom:0; }
+.readiness-pill{ font-size:12px; font-weight:700; padding:5px 12px; border-radius:20px; white-space:nowrap; }
+.readiness-pill.readiness-green{ background:var(--success-bg); color:var(--success); }
+.readiness-pill.readiness-orange{ background:var(--warning-bg); color:var(--warning); }
+.readiness-pill.readiness-red{ background:var(--danger-bg); color:var(--danger); }
+
+/* ---------- Checklist-paneel ---------- */
+.checklist-category{ margin-bottom:18px; }
+.checklist-category:last-child{ margin-bottom:0; }
+.checklist-category-title{ font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--faint); font-weight:700; margin-bottom:8px; }
+.checklist-items{ display:flex; flex-direction:column; gap:4px; margin-bottom:6px; }
+.checklist-item{ display:flex; align-items:center; gap:9px; padding:4px 2px; border-radius:3px; }
+.checklist-item:hover{ background:#fafaf9; }
+.checklist-item input[type="checkbox"]{ width:auto; flex-shrink:0; }
+.checklist-item-label{ border:1px solid transparent; background:transparent; padding:4px 6px; font-size:12.5px; flex:1; }
+.checklist-item-label:hover, .checklist-item-label:focus{ border-color:#d6d6d6; background:#fff; }
+.checklist-item-key .checklist-item-label{ font-weight:700; }
+
+/* ---------- Key/value rijen (Contact, Administratie, Nazorg) ---------- */
+.kv-row{ display:flex; justify-content:space-between; gap:12px; padding:6px 0; border-bottom:1px solid var(--line); font-size:12.5px; }
+.kv-row:last-of-type{ border-bottom:none; }
+.kv-key{ color:var(--muted); }
+
+/* ---------- Boeking: extra's + totaal ---------- */
+.extras-list{ display:flex; flex-direction:column; gap:6px; margin-bottom:8px; }
+.extras-row{ display:grid; grid-template-columns: 1fr 110px 30px; gap:8px; align-items:center; }
+.booking-total{ display:flex; justify-content:space-between; font-weight:800; font-size:15px; margin-top:14px; padding-top:12px; border-top:1px solid var(--line); }
+
 /* ---------- Responsive ---------- */
 @media (max-width: 980px){
   .sidebar{ position:fixed; left:0; top:0; z-index:50; transform:translateX(-100%); transition:transform .18s ease; box-shadow:0 0 30px rgba(0,0,0,.15); }

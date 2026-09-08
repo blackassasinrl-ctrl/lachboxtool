@@ -39,10 +39,7 @@ function emit(event, payload){
 async function refreshCustomers(){ cache.customers = await storage().getCustomers(); emit("customers:changed", cache.customers); return cache.customers; }
 async function refreshLeads(){ cache.leads = await storage().getLeads(); emit("leads:changed", cache.leads); return cache.leads; }
 async function refreshEvents(){ cache.events = await storage().getEvents(); emit("events:changed", cache.events); return cache.events; }
-async function refreshChecklists(){
-  // Geen "getAll" nodig in de UI-laag; checklists worden altijd via eventId opgevraagd.
-  emit("checklists:changed");
-}
+async function refreshChecklists(){ cache.checklists = await storage().getChecklists(); emit("checklists:changed", cache.checklists); return cache.checklists; }
 async function refreshInvoices(){ cache.invoices = await storage().getInvoices(); emit("invoices:changed", cache.invoices); return cache.invoices; }
 async function refreshReviews(){ cache.reviews = await storage().getReviews(); emit("reviews:changed", cache.reviews); return cache.reviews; }
 async function refreshSettings(){ cache.settings = await storage().getSettings(); emit("settings:changed", cache.settings); return cache.settings; }
@@ -50,7 +47,7 @@ async function refreshCounter(){ cache.counter = await storage().getInvoiceCount
 
 async function refreshAll(){
   await Promise.all([
-    refreshCustomers(), refreshLeads(), refreshEvents(),
+    refreshCustomers(), refreshLeads(), refreshEvents(), refreshChecklists(),
     refreshInvoices(), refreshReviews(), refreshSettings(), refreshCounter()
   ]);
   cache.loaded = true;
@@ -77,6 +74,18 @@ function leadsForCustomer(customerId){
 function reviewsForCustomer(customerId){
   return cache.reviews.filter(r => r.customerId === customerId);
 }
+function invoicesForEvent(eventId){
+  return cache.invoices.filter(i => i.eventId === eventId);
+}
+function reviewForEvent(eventId){
+  return cache.reviews.find(r => r.eventId === eventId) || null;
+}
+function checklistForEvent(eventId){
+  return cache.checklists.find(c => c.eventId === eventId) || null;
+}
+function leadForEvent(leadId){
+  return leadId ? (cache.leads.find(l => l.id === leadId) || null) : null;
+}
 function customerRevenueTotal(customerId){
   return invoicesForCustomer(customerId)
     .filter(i => i.paymentStatus === "betaald")
@@ -90,6 +99,7 @@ LachboxOS.state = {
   refreshInvoices, refreshReviews, refreshSettings, refreshCounter, refreshAll,
   getCustomerById, customerDisplayName,
   eventsForCustomer, invoicesForCustomer, leadsForCustomer, reviewsForCustomer,
+  invoicesForEvent, reviewForEvent, checklistForEvent, leadForEvent,
   customerRevenueTotal
 };
 

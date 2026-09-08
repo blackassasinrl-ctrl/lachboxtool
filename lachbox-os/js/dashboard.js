@@ -94,6 +94,22 @@ function computeActions(){
     }
   });
 
+  // Event binnenkort maar checklist nog niet (voldoende) af (sectie 25-voorbeeld).
+  if (LachboxOS.checklists){
+    c.events.forEach(ev => {
+      if (!ev.date || ev.status === "Afgerond" || ev.status === "Geannuleerd") return;
+      const days = utils().daysBetween(today, ev.date);
+      if (days == null || days < 0 || days > 3) return;
+      const checklist = state().checklistForEvent(ev.id);
+      const readiness = LachboxOS.checklists.computeChecklistReadiness(checklist);
+      if (readiness.percent < 100){
+        const customer = state().getCustomerById(ev.customerId);
+        const naam = state().customerDisplayName(customer) || ev.eventName || "event";
+        actions.push({ text: `Event over ${days} dag${days===1?"":"en"} (${naam}) maar checklist is nog maar ${readiness.percent}%`, level: readiness.level === "red" ? "danger" : "warning" });
+      }
+    });
+  }
+
   return actions;
 }
 
