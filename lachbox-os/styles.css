@@ -349,6 +349,16 @@ label{ display:block; font-size:10.5px; font-weight:600; letter-spacing:.02em; c
   .invoice-editor-preview{ position:static; }
 }
 
+/* ---------- Communicatie: e-mailsjablonen + reviewrijen ---------- */
+.btn-row{ display:flex; gap:8px; margin-top:14px; flex-wrap:wrap; }
+.row-actions{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.template-list{ display:flex; flex-direction:column; gap:2px; }
+.template-list-group-label{ font-size:10px; text-transform:uppercase; letter-spacing:.06em; color:var(--faint); font-weight:700; margin:12px 0 4px; }
+.template-list-group-label:first-child{ margin-top:0; }
+.template-list-item{ text-align:left; border:1px solid transparent; background:transparent; padding:8px 10px; border-radius:4px; font-size:12.5px; cursor:pointer; }
+.template-list-item:hover{ background:#f4f4f2; }
+.template-list-item.active{ background:#111; color:#fff; }
+
 /* ---------- A4-factuurdocument (identiek aan de losse factuurtool) ---------- */
 .invoice-preview-wrapper{ display:flex; justify-content:center; overflow-x:auto; padding:0 0 24px; }
 #invoicePreview.a4{

@@ -273,6 +273,20 @@ function renderEventDetailPage(container, params){
   const readiness = checklists().computeChecklistReadiness(state().checklistForEvent(event.id));
   titleWrap.appendChild(utils().make("span", "readiness-pill readiness-" + readiness.level, `${checklists().readinessDot(readiness.level)} ${readiness.percent}% gereed — ${readiness.label}`));
   header.appendChild(titleWrap);
+  if (LachboxOS.email && event.customerId){
+    const emailBtn = utils().make("button", "btn secondary small", "E-mail");
+    emailBtn.type = "button";
+    emailBtn.addEventListener("click", () => {
+      let templateKey = "boeking_bevestiging";
+      if (event.status === "Afgerond") templateKey = "bedankt_na_event";
+      else if (event.date){
+        const days = utils().daysBetween(utils().todayISO(), event.date);
+        if (days != null && days >= 0 && days <= 7) templateKey = "praktische_info";
+      }
+      LachboxOS.email.openEmailGenerator({ customerId: event.customerId, eventId: event.id, templateKey });
+    });
+    header.appendChild(emailBtn);
+  }
   const delBtn = utils().make("button", "btn danger small", "Event verwijderen");
   delBtn.type = "button";
   delBtn.addEventListener("click", async () => {
@@ -434,15 +448,40 @@ function renderEventDetailPage(container, params){
   }
   page.appendChild(admin);
 
-  // ---- NAZORG (alleen-lezen) ----
+  // ---- NAZORG ----
   const aftercare = utils().make("div", "section-card");
   aftercare.appendChild(utils().make("h2", "section-heading", "Nazorg"));
-  const review = state().reviewForEvent(event.id);
-  const reviewLabels = { niet_gevraagd: "Niet gevraagd", verzoek_klaar: "Verzoek klaar", verstuurd: "Verstuurd", ontvangen: "Ontvangen", niet_reageren: "Niet gereageerd" };
-  const row = utils().make("div", "kv-row");
-  row.appendChild(utils().make("span", "kv-key", "Review"));
-  row.appendChild(utils().make("span", null, review ? (reviewLabels[review.status] || review.status) : "Nog geen review-verzoek"));
-  aftercare.appendChild(row);
+  if (LachboxOS.reviews){
+    const reviewsApi = LachboxOS.reviews;
+    const review = reviewsApi.reviewOrStub(event);
+    const row = utils().make("div", "kv-row");
+    row.appendChild(utils().make("span", "kv-key", "Review"));
+    const controls = utils().make("div", "row-actions");
+    const select = document.createElement("select");
+    reviewsApi.REVIEW_STATUSES.forEach(s => {
+      const opt = document.createElement("option");
+      opt.value = s; opt.textContent = reviewsApi.reviewStatusLabel(s);
+      if (s === review.status) opt.selected = true;
+      select.appendChild(opt);
+    });
+    select.addEventListener("change", async () => {
+      await reviewsApi.setReviewStatus(event, select.value);
+      utils().showToast("Reviewstatus bijgewerkt.", "success");
+      renderReload();
+    });
+    controls.appendChild(select);
+    if (review.status !== "ontvangen" && LachboxOS.email){
+      const emailBtn = utils().make("button", "btn secondary small", "Stuur e-mail");
+      emailBtn.type = "button";
+      const templateKey = (review.status === "niet_gevraagd" || review.status === "verzoek_klaar") ? "review_verzoek" : "review_herinnering";
+      emailBtn.addEventListener("click", () => {
+        LachboxOS.email.openEmailGenerator({ customerId: event.customerId, eventId: event.id, templateKey });
+      });
+      controls.appendChild(emailBtn);
+    }
+    row.appendChild(controls);
+    aftercare.appendChild(row);
+  }
   aftercare.appendChild(utils().make("div", "field-hint", "Galerij en reviewverzoek staan ook als losse items in de checklist hieronder (categorie \"Na afloop\")."));
   page.appendChild(aftercare);
 

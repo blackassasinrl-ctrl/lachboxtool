@@ -1,0 +1,455 @@
+/* ============================================================
+   LACHBOX OS — E-MAIL
+   Sjabloongenerator (sectie 20-ish van het bouwplan: communicatie).
+   Geen backend, dus geen "versturen"-knop die iets voorspiegelt wat
+   niet gebeurt (sectie 38: geen nepfunctionaliteit) — in plaats
+   daarvan vult dit scherm een sjabloon met echte klant/event/factuur-
+   gegevens en biedt het "Kopiëren naar klembord" en "Open in
+   e-mailprogramma" (mailto:) aan, zodat Mats het zelf verstuurt vanuit
+   zijn eigen mailbox.
+   ============================================================ */
+(function(){
+"use strict";
+
+window.LachboxOS = window.LachboxOS || {};
+const utils = () => LachboxOS.utils;
+const state = () => LachboxOS.state;
+const nav = () => LachboxOS.navigation;
+
+/* ---------- Openen vanuit een andere pagina (event/klant/factuur) ----------
+   Andere modules roepen LachboxOS.email.openEmailGenerator({customerId,
+   eventId, invoiceId, leadId, templateKey}) aan; deze module navigeert
+   naar zijn eigen route en pakt de context daar op (de router kent geen
+   querystrings, dus dit gaat via een simpele module-variabele). */
+let pendingContext = null;
+function openEmailGenerator(ctx){
+  pendingContext = ctx || {};
+  nav().navigateTo("communicatie/email");
+}
+
+/* ---------- Kleine tekst-hulpjes ---------- */
+function firstName(customer){
+  if (!customer) return "";
+  const src = (customer.contactPerson || customer.company || "").trim();
+  return src ? src.split(/\s+/)[0] : "";
+}
+function greeting(customer){
+  const naam = firstName(customer);
+  return naam ? `Hoi ${naam},` : "Hoi,";
+}
+function orPlaceholder(value, placeholder){
+  return value ? value : `[${placeholder}]`;
+}
+function occasionOf(ctx){
+  return (ctx.lead && ctx.lead.eventType) || (ctx.event && (ctx.event.eventType || ctx.event.eventName)) || "";
+}
+function companyOf(settings){ return (settings && settings.company) || {}; }
+function emailSettingsOf(settings){ return (settings && settings.email) || {}; }
+function signOff(settings){
+  return emailSettingsOf(settings).signOff || "Groet,\nTeam Lachbox";
+}
+
+/* ---------- Context opbouwen uit de cache (sel = {customerId,eventId,invoiceId,leadId}) ---------- */
+function buildContext(sel){
+  sel = sel || {};
+  const s = state();
+  const settings = s.cache.settings || {};
+  const customer = sel.customerId ? s.getCustomerById(sel.customerId) : null;
+  const event = sel.eventId ? s.cache.events.find(e => e.id === sel.eventId) : null;
+  const invoice = sel.invoiceId ? s.cache.invoices.find(i => i.id === sel.invoiceId) : null;
+  const lead = sel.leadId ? s.cache.leads.find(l => l.id === sel.leadId) : null;
+  return { customer, event, invoice, lead, settings };
+}
+
+/* ============================================================
+   Sjablonen — elk krijgt de volledige context en geeft {subject, body}
+   terug. Ontbrekende gegevens worden nooit stilletjes "undefined":
+   ze krijgen een duidelijke [placeholder] zodat je meteen ziet wat je
+   nog moet invullen.
+   ============================================================ */
+function tplLeadReactie(ctx){
+  const c = ctx.customer;
+  const occasion = occasionOf(ctx);
+  const dateISO = (ctx.lead && ctx.lead.eventDate) || (ctx.event && ctx.event.date);
+  const dateBit = dateISO ? ` op ${utils().formatDateLong(dateISO)}` : "";
+  return {
+    subject: `Jouw aanvraag bij Lachbox${occasion ? " - " + occasion : ""}`,
+    body: `${greeting(c)}
+
+Bedankt voor je aanvraag bij Lachbox! Leuk dat je een photobooth overweegt${occasion ? " voor je " + occasion.toLowerCase() : ""}${dateBit}.
+
+Kun je nog even laten weten wat de locatie is en welk pakket je in gedachten hebt (Mirrorbooth is bij elk pakket inbegrepen)? Dan stuur ik een passende offerte.
+
+${signOff(ctx.settings)}`
+  };
+}
+
+function tplOfferte(ctx){
+  const c = ctx.customer, l = ctx.lead;
+  const occasion = occasionOf(ctx) || "je evenement";
+  const dateISO = (l && l.eventDate) || (ctx.event && ctx.event.date);
+  const dateBit = orPlaceholder(dateISO ? utils().formatDateLong(dateISO) : null, "datum");
+  const location = orPlaceholder(l && l.eventLocation, "locatie");
+  const pakket = orPlaceholder(l && l.requestedPackage, "pakket");
+  const prijs = l && l.estimatedValue ? utils().formatCurrency(l.estimatedValue) : "[bedrag]";
+  return {
+    subject: `Offerte Lachbox voor ${occasion}`,
+    body: `${greeting(c)}
+
+Hierbij de offerte voor ${occasion} op ${dateBit} in ${location}:
+
+Pakket: ${pakket}
+Prijs: ${prijs} (inclusief btw, opbouw en afbouw)
+
+Laat je weten of dit past? Dan leg ik de datum voor je vast.
+
+${signOff(ctx.settings)}`
+  };
+}
+
+function tplLeadOpvolgen(ctx){
+  const c = ctx.customer;
+  const occasion = occasionOf(ctx);
+  return {
+    subject: "Nog interesse in Lachbox?",
+    body: `${greeting(c)}
+
+Een tijdje terug spraken we over een photobooth via Lachbox${occasion ? " voor " + occasion.toLowerCase() : ""}. Ik hoor er nog niets meer over en wilde even checken of je hier nog mee bezig bent.
+
+Heb je nog vragen over de offerte, of moet er iets aangepast worden? Laat het gerust weten.
+
+${signOff(ctx.settings)}`
+  };
+}
+
+function tplBoekingBevestiging(ctx){
+  const c = ctx.customer, ev = ctx.event;
+  const naamBit = ev ? (ev.eventName || ev.eventType || "je event") : "je event";
+  const dateBit = orPlaceholder(ev && ev.date ? utils().formatDateLong(ev.date) : null, "datum");
+  const tijdBit = ev && ev.startTime ? ev.startTime + (ev.endTime ? " - " + ev.endTime : "") : "[tijd]";
+  const locatie = orPlaceholder(ev && ev.location, "locatie");
+  const pakket = orPlaceholder(ev && ev.package, "pakket");
+  const prijs = ev && ev.price ? utils().formatCurrency(ev.price) : "[bedrag]";
+  return {
+    subject: `Boeking bevestigd - ${naamBit}`,
+    body: `${greeting(c)}
+
+Je boeking staat vast! Hierbij de gegevens op een rij:
+
+Datum: ${dateBit}
+Tijd: ${tijdBit}
+Locatie: ${locatie}
+Pakket: ${pakket}
+Prijs: ${prijs}
+
+Zodra het event dichterbij komt stuur ik nog praktische info. Heb je in de tussentijd vragen, laat het gerust weten.
+
+${signOff(ctx.settings)}`
+  };
+}
+
+function tplPraktischeInfo(ctx){
+  const c = ctx.customer, ev = ctx.event, company = companyOf(ctx.settings);
+  const dateBit = orPlaceholder(ev && ev.date ? utils().formatDateLong(ev.date) : null, "datum");
+  const tijdBit = ev && ev.startTime ? `we bouwen ruim voor ${ev.startTime} op` : "[aankomsttijd]";
+  const locatie = orPlaceholder(ev && ev.location, "locatie");
+  const senderName = orPlaceholder(emailSettingsOf(ctx.settings).senderName, "naam");
+  const senderEmail = orPlaceholder(company.email, "e-mailadres");
+  return {
+    subject: `Praktische info voor ${ev && ev.date ? utils().formatDateDisplay(ev.date) : "je event"}`,
+    body: `${greeting(c)}
+
+Nog even de praktische info voor het event op ${dateBit}:
+
+Opbouw: ${tijdBit}
+Locatie: ${locatie}
+Contactpersoon op de dag zelf: ${senderName} (${senderEmail})
+
+Mocht er onderweg iets veranderen (parkeren, ingang, contactpersoon ter plekke), laat het gerust nog even weten.
+
+Tot dan!
+
+${signOff(ctx.settings)}`
+  };
+}
+
+function tplFactuurVersturen(ctx){
+  const c = ctx.customer, inv = ctx.invoice, company = companyOf(ctx.settings);
+  const nummer = orPlaceholder(inv && inv.invoiceNumber, "factuurnummer");
+  const bedrag = inv ? utils().formatCurrency(inv.total || 0) : "[bedrag]";
+  const vervalBit = orPlaceholder(inv && inv.dueDate ? utils().formatDateLong(inv.dueDate) : null, "vervaldatum");
+  const iban = orPlaceholder(company.iban, "IBAN");
+  const kenmerk = orPlaceholder(inv && (inv.reference || inv.invoiceNumber), "factuurnummer");
+  return {
+    subject: `Factuur ${nummer}`,
+    body: `${greeting(c)}
+
+Hierbij factuur ${nummer} voor een bedrag van ${bedrag}.
+
+Wil je het bedrag vóór ${vervalBit} overmaken naar ${iban} onder vermelding van ${kenmerk}?
+
+${signOff(ctx.settings)}`
+  };
+}
+
+function tplBetalingsherinnering(ctx){
+  const c = ctx.customer, inv = ctx.invoice, company = companyOf(ctx.settings);
+  const nummer = orPlaceholder(inv && inv.invoiceNumber, "factuurnummer");
+  const bedrag = inv ? utils().formatCurrency(inv.total || 0) : "[bedrag]";
+  const dueLong = inv && inv.dueDate ? utils().formatDateLong(inv.dueDate) : null;
+  const daysOver = inv && inv.dueDate ? utils().daysBetween(inv.dueDate, utils().todayISO()) : null;
+  const overdueText = (daysOver != null && daysOver > 0)
+    ? `sinds ${dueLong} (${daysOver} dag${daysOver === 1 ? "" : "en"}) verlopen`
+    : (dueLong ? `en verloopt op ${dueLong}` : "nog open");
+  const iban = orPlaceholder(company.iban, "IBAN");
+  const kenmerk = orPlaceholder(inv && (inv.reference || inv.invoiceNumber), "factuurnummer");
+  return {
+    subject: `Herinnering: factuur ${nummer} nog openstaand`,
+    body: `${greeting(c)}
+
+Even een vriendelijke herinnering: factuur ${nummer} van ${bedrag} staat nog open, ${overdueText}.
+
+Wil je het bedrag alsnog overmaken naar ${iban} onder vermelding van ${kenmerk}? Is de factuur per ongeluk blijven liggen, of loopt er iets anders? Laat het gerust weten.
+
+${signOff(ctx.settings)}`
+  };
+}
+
+function tplBedanktNaEvent(ctx){
+  const c = ctx.customer, ev = ctx.event;
+  const naamBit = ev ? (ev.eventName || ev.eventType || "het event") : "het event";
+  const dateBit = ev && ev.date ? " op " + utils().formatDateLong(ev.date) : "";
+  return {
+    subject: "Bedankt namens Lachbox!",
+    body: `${greeting(c)}
+
+Bedankt voor het vertrouwen! We hebben genoten van ${naamBit}${dateBit}.
+
+De foto's komen zo snel mogelijk naar je toe via een online galerij. Zodra die klaarstaat, stuur ik een linkje door.
+
+${signOff(ctx.settings)}`
+  };
+}
+
+function tplReviewVerzoek(ctx){
+  const c = ctx.customer, ev = ctx.event;
+  const naamBit = ev ? (ev.eventName || ev.eventType || "de boeking") : "de boeking";
+  const url = (ctx.settings.reviews && ctx.settings.reviews.googleReviewUrl) || "";
+  const linkBit = url || "[Google review-link nog invullen bij Instellingen > Reviews & e-mail]";
+  return {
+    subject: "Zou je een review willen achterlaten?",
+    body: `${greeting(c)}
+
+Nogmaals bedankt voor ${naamBit}! Zou je ons enorm helpen door een korte review achter te laten?
+
+${linkBit}
+
+Alvast bedankt voor de moeite!
+
+${signOff(ctx.settings)}`
+  };
+}
+
+function tplReviewHerinnering(ctx){
+  const c = ctx.customer, ev = ctx.event;
+  const naamBit = ev ? (ev.eventName || ev.eventType || "het event") : "het event";
+  const url = (ctx.settings.reviews && ctx.settings.reviews.googleReviewUrl) || "";
+  const linkBit = url || "[Google review-link nog invullen bij Instellingen > Reviews & e-mail]";
+  return {
+    subject: "Nog even een reminder - review Lachbox",
+    body: `${greeting(c)}
+
+Een tijdje terug vroeg ik of je een review wilde achterlaten na ${naamBit}. Mocht dat er nog niet van gekomen zijn: het kost een minuutje en helpt ons enorm.
+
+${linkBit}
+
+${signOff(ctx.settings)}`
+  };
+}
+
+function tplAlgemeen(ctx){
+  const c = ctx.customer;
+  return {
+    subject: "Bericht van Lachbox",
+    body: `${greeting(c)}
+
+
+
+${signOff(ctx.settings)}`
+  };
+}
+
+const TEMPLATES = [
+  { key: "lead_reactie", label: "Eerste reactie op aanvraag", category: "Lead", build: tplLeadReactie },
+  { key: "offerte", label: "Offerte versturen", category: "Lead", build: tplOfferte },
+  { key: "lead_opvolgen", label: "Lead opvolgen (geen reactie)", category: "Lead", build: tplLeadOpvolgen },
+  { key: "boeking_bevestiging", label: "Boeking bevestigen", category: "Boeking", build: tplBoekingBevestiging },
+  { key: "praktische_info", label: "Praktische info vooraf", category: "Boeking", build: tplPraktischeInfo },
+  { key: "factuur_versturen", label: "Factuur versturen", category: "Facturatie", build: tplFactuurVersturen },
+  { key: "betalingsherinnering", label: "Betalingsherinnering", category: "Facturatie", build: tplBetalingsherinnering },
+  { key: "bedankt_na_event", label: "Bedankt na het event", category: "Nazorg", build: tplBedanktNaEvent },
+  { key: "review_verzoek", label: "Review-verzoek", category: "Nazorg", build: tplReviewVerzoek },
+  { key: "review_herinnering", label: "Review-herinnering", category: "Nazorg", build: tplReviewHerinnering },
+  { key: "algemeen", label: "Algemeen bericht", category: "Overig", build: tplAlgemeen }
+];
+
+/* ---------- Klembord + mailto ---------- */
+async function copyToClipboard(text){
+  try{
+    await navigator.clipboard.writeText(text);
+    return true;
+  }catch(e){
+    try{
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.focus(); ta.select();
+      const ok = document.execCommand("copy");
+      ta.remove();
+      return ok;
+    }catch(e2){ return false; }
+  }
+}
+function buildMailto(customer, subject, body){
+  const to = customer && customer.email ? encodeURIComponent(customer.email) : "";
+  return `mailto:${to}?subject=${encodeURIComponent(subject || "")}&body=${encodeURIComponent(body || "")}`;
+}
+
+/* ============================================================
+   Generatorpagina
+   ============================================================ */
+function renderEmailGeneratorPage(container){
+  const ctxSel = { customerId: null, eventId: null, invoiceId: null, leadId: null };
+  Object.assign(ctxSel, pendingContext || {});
+  let activeTemplateKey = (pendingContext && pendingContext.templateKey) || TEMPLATES[0].key;
+  pendingContext = null;
+
+  let subjectDirty = false, bodyDirty = false;
+  let manualSubject = "", manualBody = "";
+
+  const page = utils().make("div", "page");
+  page.appendChild(utils().make("h1", "page-title", "E-mail opstellen"));
+
+  const grid = utils().make("div", "invoice-editor-grid");
+  const formCol = utils().make("div", "invoice-editor-form");
+  const previewCol = utils().make("div", "invoice-editor-preview");
+  grid.appendChild(formCol); grid.appendChild(previewCol);
+  page.appendChild(grid);
+  container.appendChild(page);
+
+  // ---- Voorbeeld-kolom staat hier al, vóór de klant-picker verderop:
+  // die roept zijn onChange-callback synchroon aan tijdens het bouwen,
+  // dus refreshPreview() moet al kunnen draaien (zelfde patroon/valkuil
+  // als de factuureditor uit Milestone 4). ----
+  const previewPanel = utils().make("div", "section-card");
+  previewPanel.appendChild(utils().make("h2", "section-heading", "Voorbeeld"));
+  const toRow = utils().make("div", "kv-row");
+  toRow.appendChild(utils().make("span", "kv-key", "Aan"));
+  const toValue = utils().make("span", null, "Kies eerst een klant");
+  toRow.appendChild(toValue);
+  previewPanel.appendChild(toRow);
+  const subjectField = utils().textField("Onderwerp", "", v => { manualSubject = v; subjectDirty = true; });
+  previewPanel.appendChild(subjectField);
+  const bodyField = utils().textField("Bericht", "", v => { manualBody = v; bodyDirty = true; }, { textarea: true, rows: 16 });
+  previewPanel.appendChild(bodyField);
+  const previewActions = utils().make("div", "btn-row");
+  const copyBtn = utils().make("button", "btn secondary small", "Kopiëren naar klembord");
+  copyBtn.type = "button";
+  const mailBtn = utils().make("a", "btn primary small", "Open in e-mailprogramma");
+  previewActions.appendChild(copyBtn); previewActions.appendChild(mailBtn);
+  previewPanel.appendChild(previewActions);
+  previewCol.appendChild(previewPanel);
+
+  copyBtn.addEventListener("click", async () => {
+    const text = manualSubject ? `${manualSubject}\n\n${manualBody}` : manualBody;
+    const ok = await copyToClipboard(text);
+    utils().showToast(ok ? "Gekopieerd naar klembord." : "Kopiëren is niet gelukt. Selecteer de tekst handmatig.", ok ? "success" : "error");
+  });
+
+  function currentCtx(){ return buildContext(ctxSel); }
+
+  function refreshPreview(){
+    const ctx = currentCtx();
+    toValue.textContent = ctx.customer ? (ctx.customer.email || "(geen e-mailadres bekend bij deze klant)") : "Kies eerst een klant";
+    const tpl = TEMPLATES.find(t => t.key === activeTemplateKey) || TEMPLATES[0];
+    const rendered = tpl.build(ctx);
+    if (!subjectDirty){ manualSubject = rendered.subject; subjectField._input.value = manualSubject; }
+    if (!bodyDirty){ manualBody = rendered.body; bodyField._input.value = manualBody; }
+    mailBtn.href = buildMailto(ctx.customer, manualSubject, manualBody);
+  }
+
+  // ---- Context: klant + optioneel event/factuur/lead ----
+  const contextSection = utils().make("div", "section-card");
+  contextSection.appendChild(utils().make("h2", "section-heading", "Aan wie?"));
+  contextSection.appendChild(utils().make("div", "field-hint", "Kies een klant en eventueel een event, factuur of lead — het sjabloon vult zich dan met de echte gegevens."));
+  const relatedSlot = utils().make("div");
+  contextSection.appendChild(relatedSlot);
+
+  function renderRelatedSelectors(){
+    utils().clear(relatedSlot);
+    if (!ctxSel.customerId) return;
+    const events = state().eventsForCustomer(ctxSel.customerId).slice().sort((a,b) => (b.date||"").localeCompare(a.date||""));
+    const invoices = state().invoicesForCustomer(ctxSel.customerId).slice().sort((a,b) => (b.issueDate||"").localeCompare(a.issueDate||""));
+    const leads = state().leadsForCustomer(ctxSel.customerId);
+
+    if (!events.some(e => e.id === ctxSel.eventId)) ctxSel.eventId = events.length === 1 ? events[0].id : null;
+    const eventOptions = [["", "Geen event gekoppeld"]].concat(events.map(e => [e.id, (e.eventName || e.eventType || "Event") + (e.date ? " · " + utils().formatDateDisplay(e.date) : "")]));
+    relatedSlot.appendChild(utils().selectField("Event", ctxSel.eventId || "", eventOptions, v => { ctxSel.eventId = v || null; refreshPreview(); }));
+
+    if (!invoices.some(i => i.id === ctxSel.invoiceId)) ctxSel.invoiceId = invoices.length === 1 ? invoices[0].id : null;
+    const invoiceOptions = [["", "Geen factuur gekoppeld"]].concat(invoices.map(i => [i.id, (i.invoiceNumber || "Concept") + " · " + utils().formatCurrency(i.total || 0)]));
+    relatedSlot.appendChild(utils().selectField("Factuur", ctxSel.invoiceId || "", invoiceOptions, v => { ctxSel.invoiceId = v || null; refreshPreview(); }));
+
+    if (!leads.some(l => l.id === ctxSel.leadId)) ctxSel.leadId = leads.length === 1 ? leads[0].id : null;
+    const leadOptions = [["", "Geen lead gekoppeld"]].concat(leads.map(l => [l.id, (l.eventType || "Lead") + " · " + l.status]));
+    relatedSlot.appendChild(utils().selectField("Lead", ctxSel.leadId || "", leadOptions, v => { ctxSel.leadId = v || null; refreshPreview(); }));
+  }
+
+  const picker = LachboxOS.crm.buildCustomerPicker({
+    label: "Klant",
+    initialCustomerId: ctxSel.customerId,
+    onChange: v => { ctxSel.customerId = v; renderRelatedSelectors(); refreshPreview(); }
+  });
+  contextSection.insertBefore(picker.el, relatedSlot);
+  formCol.appendChild(contextSection);
+
+  // ---- Sjabloonkeuze ----
+  const templateSection = utils().make("div", "section-card");
+  templateSection.appendChild(utils().make("h2", "section-heading", "Sjabloon"));
+  const templateList = utils().make("div", "template-list");
+  const templateButtons = {};
+  const categories = [];
+  TEMPLATES.forEach(t => { if (!categories.includes(t.category)) categories.push(t.category); });
+  categories.forEach(cat => {
+    templateList.appendChild(utils().make("div", "template-list-group-label", cat));
+    TEMPLATES.filter(t => t.category === cat).forEach(t => {
+      const btn = utils().make("button", "template-list-item", t.label);
+      btn.type = "button";
+      btn.addEventListener("click", () => selectTemplate(t.key));
+      templateButtons[t.key] = btn;
+      templateList.appendChild(btn);
+    });
+  });
+  templateSection.appendChild(templateList);
+  formCol.appendChild(templateSection);
+
+  function updateTemplateButtons(){
+    TEMPLATES.forEach(t => templateButtons[t.key].classList.toggle("active", t.key === activeTemplateKey));
+  }
+  function selectTemplate(key){
+    activeTemplateKey = key;
+    subjectDirty = false; bodyDirty = false;
+    updateTemplateButtons();
+    refreshPreview();
+  }
+
+  updateTemplateButtons();
+  refreshPreview();
+}
+
+nav().registerRoute({ path: "communicatie/email", label: "E-mail", icon: "✉", group: "Communicatie", render: (c) => renderEmailGeneratorPage(c) });
+
+LachboxOS.email = { openEmailGenerator, TEMPLATES, buildContext };
+
+})();

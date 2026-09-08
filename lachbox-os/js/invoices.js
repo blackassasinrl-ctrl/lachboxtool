@@ -670,6 +670,15 @@ function renderInvoiceEditorPage(container, params){
   titleWrap.appendChild(utils().make("h1", "page-title", invoice.invoiceNumber || "Nieuwe factuur"));
   titleWrap.appendChild(utils().make("span", "badge " + LachboxOS.invoices.invoiceStatusBadgeClass(invoice), LachboxOS.invoices.invoiceStatusLabel(invoice)));
   header.appendChild(titleWrap);
+  if (LachboxOS.email && invoice.customerId){
+    const emailBtn = utils().make("button", "btn secondary small", "E-mail");
+    emailBtn.type = "button";
+    emailBtn.addEventListener("click", () => {
+      const templateKey = invoiceIsOverdue(invoice) ? "betalingsherinnering" : "factuur_versturen";
+      LachboxOS.email.openEmailGenerator({ customerId: invoice.customerId, eventId: invoice.eventId, invoiceId: invoice.id, templateKey });
+    });
+    header.appendChild(emailBtn);
+  }
   const delBtn = utils().make("button", "btn danger small", "Factuur verwijderen");
   delBtn.type = "button";
   delBtn.addEventListener("click", async () => {

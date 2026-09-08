@@ -86,7 +86,7 @@ function computeActions(){
 
   c.events.forEach(ev => {
     if (ev.status !== "Afgerond") return;
-    const review = c.reviews.find(r => r.eventId === ev.id);
+    const review = state().reviewForEvent(ev.id);
     if (!review || review.status === "niet_gevraagd"){
       const customer = state().getCustomerById(ev.customerId);
       const naam = state().customerDisplayName(customer) || ev.eventName || "klant";

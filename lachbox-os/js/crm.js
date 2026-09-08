@@ -577,6 +577,14 @@ function renderCustomerDetailPage(container, params){
 
   const header = utils().make("div", "detail-header");
   header.appendChild(utils().make("h1", "page-title", state().customerDisplayName(customer)));
+  if (LachboxOS.email){
+    const emailBtn = utils().make("button", "btn secondary small", "E-mail");
+    emailBtn.type = "button";
+    emailBtn.addEventListener("click", () => {
+      LachboxOS.email.openEmailGenerator({ customerId: customer.id, templateKey: "algemeen" });
+    });
+    header.appendChild(emailBtn);
+  }
   const delBtn = utils().make("button", "btn danger small", "Klant verwijderen");
   delBtn.type = "button";
   delBtn.addEventListener("click", async () => {
@@ -716,8 +724,9 @@ function renderCustomerDetailPage(container, params){
     reviews.forEach(r => {
       const row = utils().make("div", "related-row");
       row.appendChild(utils().make("span", null, r.platform || "Review"));
-      const cls = r.status === "ontvangen" ? "badge-success" : (r.status === "niet_gevraagd" ? "badge-info" : "badge-warning");
-      row.appendChild(utils().make("span", "badge " + cls, r.status.replace(/_/g, " ")));
+      const label = LachboxOS.reviews ? LachboxOS.reviews.reviewStatusLabel(r.status) : r.status.replace(/_/g, " ");
+      const cls = LachboxOS.reviews ? LachboxOS.reviews.reviewStatusBadgeClass(r.status) : "badge-info";
+      row.appendChild(utils().make("span", "badge " + cls, label));
       list.appendChild(row);
     });
     reviewsPanel.appendChild(list);
