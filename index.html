@@ -588,7 +588,7 @@ const CONFIG = {
   vatRates: [0, 9, 21],
   defaultVatRate: 21,
 
-  invoiceNumberPrefix: "LB"
+  invoiceNumberPrefix: ""
 };
 
 const STORAGE_KEYS = {
@@ -657,6 +657,24 @@ function createEmptyLine(type){
   };
 }
 
+// Mirrorbooth is de standaard basisdienst: elke nieuwe factuur begint hiermee
+// al ingevuld, de gebruiker hoeft hem alleen nog te verwijderen/aanpassen als
+// een offerte hier onverhoopt van afwijkt.
+function buildDefaultLines(){
+  const comp = CONFIG.components.mirrorbooth;
+  if (!comp) return [];
+  return [{
+    id: uid(),
+    type: "item",
+    description: comp.name,
+    subtext: comp.subtext || "",
+    qty: 1,
+    price: comp.price,
+    priceMode: comp.priceMode,
+    vatRate: comp.vatRate
+  }];
+}
+
 function createEmptyState(){
   const today = new Date();
   const term = companySettings.defaultPaymentTermDays;
@@ -667,7 +685,10 @@ function createEmptyState(){
       email: "", phone: ""
     },
     event: {
-      date: "", location: "", type: "", reference: "", note: ""
+      date: "", location: "", type: "", reference: "", note: "",
+      // Zolang dit true is volgt de referentie automatisch het factuurnummer;
+      // zodra de gebruiker zelf iets in het referentieveld typt, gaat dit uit.
+      referenceAutoSynced: true
     },
     invoice: {
       number: "",           // provisorisch nummer, wordt bij init gevuld
@@ -675,7 +696,7 @@ function createEmptyState(){
       paymentTermDays: term,
       dueDate: formatDateInputValue(addDays(today, term))
     },
-    lines: []
+    lines: buildDefaultLines()
   };
 }
 
@@ -714,7 +735,8 @@ function saveCompanySettings(){
 }
 
 function loadInvoiceCounter(){
-  return loadJSON(STORAGE_KEYS.counter, { year: new Date().getFullYear(), lastNumber: 0 });
+  const now = new Date();
+  return loadJSON(STORAGE_KEYS.counter, { year: now.getFullYear(), month: now.getMonth() + 1, lastNumber: 0 });
 }
 
 function saveInvoiceCounter(counter){
@@ -975,22 +997,42 @@ function showValidationErrors(errors){
    INVOICE NUMBERING
    ============================================================ */
 
+// Format: jjjj-mm-nnn — "hoeveelste verhuur" telt binnen de kalendermaand,
+// niet binnen het jaar. De teller reset dus elke nieuwe maand naar 001.
+// CONFIG.invoiceNumberPrefix staat leeg (geen prefix); vul hem in als er
+// later toch weer een prefix (bv. "LB") gewenst is.
 function generateProvisionalInvoiceNumber(){
   const counter = loadInvoiceCounter();
-  const year = new Date().getFullYear();
-  const nextSeq = (counter.year === year) ? counter.lastNumber + 1 : 1;
-  return formatInvoiceNumber(year, nextSeq);
+  const now = new Date();
+  const year = now.getFullYear(), month = now.getMonth() + 1;
+  const nextSeq = (counter.year === year && counter.month === month) ? counter.lastNumber + 1 : 1;
+  return formatInvoiceNumber(year, month, nextSeq);
 }
 
-function formatInvoiceNumber(year, seq){
-  return `${CONFIG.invoiceNumberPrefix}-${year}-${String(seq).padStart(3, "0")}`;
+function formatInvoiceNumber(year, month, seq){
+  const prefix = CONFIG.invoiceNumberPrefix ? CONFIG.invoiceNumberPrefix + "-" : "";
+  return `${prefix}${year}-${pad2(month)}-${String(seq).padStart(3, "0")}`;
 }
 
 function parseInvoiceNumber(numberStr){
-  const re = new RegExp(`^${CONFIG.invoiceNumberPrefix}-(\\d{4})-(\\d+)$`);
+  const prefixPart = CONFIG.invoiceNumberPrefix
+    ? CONFIG.invoiceNumberPrefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "-"
+    : "";
+  const re = new RegExp(`^${prefixPart}(\\d{4})-(\\d{2})-(\\d+)$`);
   const m = (numberStr || "").trim().match(re);
   if (!m) return null;
-  return { year: parseInt(m[1], 10), seq: parseInt(m[2], 10) };
+  return { year: parseInt(m[1], 10), month: parseInt(m[2], 10), seq: parseInt(m[3], 10) };
+}
+
+function periodKey(year, month){ return year * 12 + month; }
+
+// Houdt het referentieveld gelijk aan het factuurnummer, zolang de gebruiker
+// zelf niets in dat veld heeft getypt (zie event.referenceAutoSynced).
+function syncReferenceWithInvoiceNumber(){
+  if (!state.event.referenceAutoSynced) return;
+  state.event.reference = state.invoice.number;
+  const field = el("event_reference");
+  if (field) field.value = state.event.reference;
 }
 
 // Legt het huidige factuurnummer definitief vast in de teller (localStorage).
@@ -1000,14 +1042,15 @@ function commitInvoiceNumber(numberStr){
   const parsed = parseInvoiceNumber(numberStr);
   if (!parsed) return; // handmatig/afwijkend nummer: teller blijft ongemoeid
   const counter = loadInvoiceCounter();
-  const currentYear = new Date().getFullYear();
+  const now = new Date();
+  const currentPeriod = periodKey(now.getFullYear(), now.getMonth() + 1);
   let newCounter;
-  if (parsed.year === counter.year){
-    newCounter = { year: counter.year, lastNumber: Math.max(counter.lastNumber, parsed.seq) };
-  } else if (parsed.year >= currentYear) {
-    newCounter = { year: parsed.year, lastNumber: parsed.seq };
+  if (parsed.year === counter.year && parsed.month === counter.month){
+    newCounter = { year: counter.year, month: counter.month, lastNumber: Math.max(counter.lastNumber, parsed.seq) };
+  } else if (periodKey(parsed.year, parsed.month) >= currentPeriod) {
+    newCounter = { year: parsed.year, month: parsed.month, lastNumber: parsed.seq };
   } else {
-    newCounter = counter; // ouder jaartal: teller niet aanpassen
+    newCounter = counter; // oudere maand: teller niet aanpassen
   }
   saveInvoiceCounter(newCounter);
 }
@@ -1042,7 +1085,10 @@ function importInvoiceData(data){
   if (e.date != null) state.event.date = String(e.date);
   if (e.location != null) state.event.location = String(e.location);
   if (e.type != null) state.event.type = String(e.type);
-  if (e.reference != null) state.event.reference = String(e.reference);
+  if (e.reference != null){
+    state.event.reference = String(e.reference);
+    state.event.referenceAutoSynced = false;
+  }
 
   // "components" is de huidige a-la-carte structuur: een lijst met keys uit
   // CONFIG.components (elk wordt een losse regel). "package" blijft ondersteund
@@ -1185,11 +1231,23 @@ function attachStaticListeners(){
   bindSimple("event_date", "event.date");
   bindSimple("event_type", "event.type");
   bindSimple("event_location", "event.location");
-  bindSimple("event_reference", "event.reference");
   bindSimple("event_note", "event.note");
+
+  // Referentie volgt standaard het factuurnummer. Typt de gebruiker hier zelf
+  // iets in, dan koppelt dat veld los; wordt het weer helemaal leeggemaakt,
+  // dan volgt het opnieuw automatisch.
+  el("event_reference").addEventListener("input", () => {
+    const value = el("event_reference").value;
+    state.event.referenceAutoSynced = value.trim() === "";
+    state.event.reference = state.event.referenceAutoSynced ? state.invoice.number : value;
+    if (state.event.referenceAutoSynced) el("event_reference").value = state.event.reference;
+    scheduleDraftSave();
+    renderAll();
+  });
 
   el("inv_number").addEventListener("input", () => {
     state.invoice.number = el("inv_number").value;
+    syncReferenceWithInvoiceNumber();
     scheduleDraftSave();
     renderAll();
   });
@@ -1864,6 +1922,7 @@ async function onNewInvoiceClick(){
   isFinalized = false;
   state = createEmptyState();
   state.invoice.number = generateProvisionalInvoiceNumber();
+  syncReferenceWithInvoiceNumber();
   populateFormFromState();
   renderAll();
   showToast("Nieuwe factuur gestart.", "success");
@@ -1917,15 +1976,18 @@ function init(){
   if (draft){
     state = draft;
     isFinalized = false;
+    if (state.event.referenceAutoSynced === undefined) state.event.referenceAutoSynced = true; // oudere concepten
     // Als het opgeslagen nummer nog een niet-vastgelegd voorstel is voor
-    // het huidige jaar/teller, houd het bij; anders alles gewoon tonen
+    // de huidige maand/teller, houd het bij; anders alles gewoon tonen
     // zoals opgeslagen. De teller wordt hier nooit verhoogd.
     if (!state.invoice.number){
       state.invoice.number = generateProvisionalInvoiceNumber();
+      syncReferenceWithInvoiceNumber();
     }
   } else {
     state = createEmptyState();
     state.invoice.number = generateProvisionalInvoiceNumber();
+    syncReferenceWithInvoiceNumber();
   }
 
   populateFormFromState();
