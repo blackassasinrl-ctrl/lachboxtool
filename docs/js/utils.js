@@ -192,6 +192,57 @@ function showToast(message, type){
   }, 3200);
 }
 
+/* ---------- Modal-viewport-hulpjes (mobiele Safari) ----------
+   Twee bekende iOS Safari-problemen met een position:fixed overlay:
+   1) de achterliggende pagina blijft "doorheen" de overlay scrollen
+      (rubber-banding), waardoor de modal lijkt te verspringen/half in
+      beeld blijft hangen;
+   2) 100dvh volgt Safari's eigen balk wel betrouwbaar, maar niet altijd
+      het toetsenbord — de Visual Viewport API doet dat overal wél, dus
+      dat is de harde garantie dat de modal (en dus zijn knoppen) binnen
+      het écht zichtbare gebied blijft, ook met een veld in focus.
+   Een teller i.p.v. simpel aan/uit, zodat een geneste modal (bijv. "nieuwe
+   klant" boven op "nieuwe lead") de achtergrond-lock niet te vroeg opheft. */
+let openOverlayCount = 0;
+let savedScrollY = 0;
+function lockBackgroundScroll(){
+  if (openOverlayCount === 0){
+    savedScrollY = window.scrollY || window.pageYOffset || 0;
+    document.body.style.position = "fixed";
+    document.body.style.top = "-" + savedScrollY + "px";
+    document.body.style.left = "0";
+    document.body.style.right = "0";
+  }
+  openOverlayCount++;
+}
+function unlockBackgroundScroll(){
+  openOverlayCount = Math.max(0, openOverlayCount - 1);
+  if (openOverlayCount === 0){
+    document.body.style.position = "";
+    document.body.style.top = "";
+    document.body.style.left = "";
+    document.body.style.right = "";
+    window.scrollTo(0, savedScrollY);
+  }
+}
+function syncOverlayToVisualViewport(overlay){
+  if (!window.visualViewport) return null;
+  const vv = window.visualViewport;
+  function sync(){
+    overlay.style.height = vv.height + "px";
+    overlay.style.width = vv.width + "px";
+    overlay.style.top = vv.offsetTop + "px";
+    overlay.style.left = vv.offsetLeft + "px";
+  }
+  sync();
+  vv.addEventListener("resize", sync);
+  vv.addEventListener("scroll", sync);
+  return () => {
+    vv.removeEventListener("resize", sync);
+    vv.removeEventListener("scroll", sync);
+  };
+}
+
 /* ---------- Generieke bevestigingsmodal ---------- */
 // Gebruikt door elke destructieve actie in het systeem (event verwijderen,
 // backup herstellen, klant archiveren, ...). Retourneert een Promise<boolean>.
@@ -205,9 +256,13 @@ function askConfirm(title, message, opts){
     okBtn.textContent = opts.okLabel || "Doorgaan";
     okBtn.className = "btn " + (opts.danger === false ? "primary" : "danger");
     modal.hidden = false;
+    lockBackgroundScroll();
+    const stopViewportSync = syncOverlayToVisualViewport(modal);
 
     function cleanup(result){
       modal.hidden = true;
+      if (stopViewportSync) stopViewportSync();
+      unlockBackgroundScroll();
       okBtn.removeEventListener("click", onOk);
       cancelBtn.removeEventListener("click", onCancel);
       resolve(result);
@@ -240,8 +295,14 @@ function openModal(opts){
   modal.appendChild(body);
   overlay.appendChild(modal);
   document.body.appendChild(overlay);
+  lockBackgroundScroll();
+  const stopViewportSync = syncOverlayToVisualViewport(overlay);
 
-  function close(){ overlay.remove(); }
+  function close(){
+    if (stopViewportSync) stopViewportSync();
+    unlockBackgroundScroll();
+    overlay.remove();
+  }
   closeBtn.addEventListener("click", close);
   overlay.addEventListener("mousedown", (e) => { if (e.target === overlay) close(); });
 
