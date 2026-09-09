@@ -609,7 +609,22 @@ function renderCustomersListPage(container){
   header.appendChild(utils().make("h1", "page-title", "Klanten"));
   const newBtn = utils().make("button", "btn primary", "+ Nieuwe klant");
   newBtn.type = "button";
-  newBtn.addEventListener("click", () => openCustomerQuickCreateModal(c => nav().navigateTo("crm/customers/" + c.id)));
+  newBtn.addEventListener("click", () => openCustomerQuickCreateModal(c => {
+    // Rechtstreeks door naar "boeking + factuur maken" met deze klant al
+    // gekozen — anders moet je 'm daar zo weer opzoeken, en dat voelde
+    // (terecht) als hetzelfde drie keer doen. Annuleren in die stap laat
+    // je gewoon op de klantpagina staan, niets gaat verloren.
+    nav().navigateTo("crm/customers/" + c.id);
+    LachboxOS.events.openEventCreateModal(async (event) => {
+      const invoice = await LachboxOS.invoices.createInvoiceFromEvent(event);
+      nav().navigateTo("invoices/" + invoice.id);
+    }, {
+      initialCustomerId: c.id,
+      title: "Boeking + factuur aanmaken",
+      saveLabel: "Boeking aanmaken",
+      savedToast: false
+    });
+  }));
   header.appendChild(newBtn);
   page.appendChild(header);
 

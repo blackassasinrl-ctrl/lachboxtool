@@ -184,23 +184,24 @@ function renderEventsListPage(container){
   renderTable();
 }
 
-function openEventCreateModal(onSaved){
+function openEventCreateModal(onSaved, opts){
+  opts = opts || {};
   const settings = state().cache.settings;
   const packageOptions = Object.keys(settings.components).map(key => [settings.components[key].name, settings.components[key].name]);
   packageOptions.push(["", "Maatwerk / anders"]);
 
   const event = {
-    customerId: null, leadId: null, eventName: "", eventType: "", date: "",
+    customerId: opts.initialCustomerId || null, leadId: null, eventName: "", eventType: "", date: "",
     startTime: "", endTime: "", location: "", address: "", package: "", price: 0,
     extras: [], costs: [], discount: 0, staff: "", notes: "", checklistId: null, invoiceId: null,
     status: "Gepland"
   };
 
   utils().openModal({
-    title: "Nieuw event",
+    title: opts.title || "Nieuw event",
     size: "large",
     build(body, modal){
-      const picker = LachboxOS.crm.buildCustomerPicker({ autofocus: true, onChange: v => event.customerId = v });
+      const picker = LachboxOS.crm.buildCustomerPicker({ autofocus: !opts.initialCustomerId, initialCustomerId: opts.initialCustomerId, onChange: v => event.customerId = v });
       body.appendChild(picker.el);
       body.appendChild(utils().fieldRow(
         utils().textField("Eventnaam", event.eventName, v => event.eventName = v, { placeholder: "bijv. Bruiloft Jansen" }),
@@ -223,16 +224,17 @@ function openEventCreateModal(onSaved){
       const cancelBtn = utils().make("button", "btn secondary small", "Annuleren");
       cancelBtn.type = "button";
       cancelBtn.addEventListener("click", () => modal.close());
-      const saveBtn = utils().make("button", "btn primary small", "Aanmaken");
+      const saveBtn = utils().make("button", "btn primary small", opts.saveLabel || "Aanmaken");
       saveBtn.type = "button";
       saveBtn.addEventListener("click", async () => {
         if (!event.customerId){ utils().showToast("Kies of maak eerst een klant.", "error"); return; }
         if (!event.date){ utils().showToast("Vul een datum in.", "error"); return; }
+        saveBtn.disabled = true;
         const saved = await storage().saveEvent(event);
         await state().refreshEvents();
         modal.close();
-        utils().showToast("Event aangemaakt.", "success");
-        if (onSaved) onSaved(saved);
+        if (opts.savedToast !== false) utils().showToast(opts.savedToast || "Event aangemaakt.", "success");
+        if (onSaved) await onSaved(saved);
       });
       actions.appendChild(cancelBtn); actions.appendChild(saveBtn);
       footer.appendChild(actions);
