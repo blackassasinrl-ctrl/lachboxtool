@@ -735,7 +735,7 @@ function renderCustomerDetailPage(container, params){
       const row = utils().make("div", "related-row");
       row.appendChild(utils().make("span", null, (lead.eventType || "Lead") + (lead.eventDate ? " · " + utils().formatDateDisplay(lead.eventDate) : "")));
       row.appendChild(utils().make("span", "badge " + leadStatusBadgeClass(lead.status), lead.status));
-      row.style.cursor = "pointer";
+      row.classList.add("related-row-clickable");
       row.addEventListener("click", () => openLeadModal(lead, renderReload));
       list.appendChild(row);
     });
@@ -753,6 +753,8 @@ function renderCustomerDetailPage(container, params){
       const row = utils().make("div", "related-row");
       row.appendChild(utils().make("span", null, (ev.eventName || ev.eventType || "Event") + (ev.date ? " · " + utils().formatDateDisplay(ev.date) : "")));
       row.appendChild(utils().make("span", "badge badge-info", ev.status || "Gepland"));
+      row.classList.add("related-row-clickable");
+      row.addEventListener("click", () => nav().navigateTo("events/" + ev.id));
       list.appendChild(row);
     });
     eventsPanel.appendChild(list);
@@ -771,7 +773,7 @@ function renderCustomerDetailPage(container, params){
       const label = LachboxOS.invoices ? LachboxOS.invoices.invoiceStatusLabel(inv) : inv.paymentStatus;
       const cls = LachboxOS.invoices ? LachboxOS.invoices.invoiceStatusBadgeClass(inv) : "badge-info";
       row.appendChild(utils().make("span", "badge " + cls, label));
-      row.style.cursor = "pointer";
+      row.classList.add("related-row-clickable");
       row.addEventListener("click", () => nav().navigateTo("invoices/" + inv.id));
       list.appendChild(row);
     });
