@@ -42,11 +42,12 @@ function renderChatPage(container){
 
   const textarea = document.createElement("textarea");
   textarea.rows = 2;
-  textarea.placeholder = "Typ een bericht... (Enter verstuurt, Shift+Enter voor een nieuwe regel)";
-  const toolsRow = utils().make("div", "chat-tools-row");
-  toolsRow.appendChild(utils().buildMentionButtons(name => utils().insertMentionAtCursor(textarea, name)));
-  toolsRow.appendChild(utils().buildRecordSearchPopover((type, id, label) => utils().insertRecordLinkAtCursor(textarea, type, id, label)));
-  chatCard.appendChild(toolsRow);
+  textarea.placeholder = "Typ een bericht... (Enter verstuurt, Shift+Enter een nieuwe regel, @ tagt een teamlid, * koppelt een klant/lead/event/factuur/review)";
+  // Vóór de "Enter verstuurt"-listener hieronder aangehaakt, zodat een Enter
+  // die een @tag/*koppeling kiest niet ook meteen het bericht verstuurt
+  // (attachInlineAutocomplete roept stopImmediatePropagation aan).
+  utils().attachInlineAutocomplete(textarea, "@", utils().mentionAutocompleteItems);
+  utils().attachInlineAutocomplete(textarea, "*", utils().recordLinkAutocompleteItems, { minChars: 2 });
 
   const inputRow = utils().make("div", "chat-input-row");
   inputRow.appendChild(textarea);

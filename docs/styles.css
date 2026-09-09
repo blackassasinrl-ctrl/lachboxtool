@@ -338,12 +338,6 @@ label{ display:block; font-size:10.5px; font-weight:600; letter-spacing:.02em; c
 
 /* ---------- @Tags (notities + chat) ---------- */
 .mention{ background:var(--info-bg); color:var(--info); border-radius:3px; padding:0 4px; font-weight:600; }
-.mention-buttons{ display:flex; flex-wrap:wrap; gap:6px; margin:8px 0; }
-.mention-btn{
-  border:1px dashed #c9c9c5; background:transparent; border-radius:20px; padding:4px 10px;
-  font-size:11.5px; font-weight:600; color:#444; cursor:pointer;
-}
-.mention-btn:hover{ border-color:#111; color:#111; background:#fafaf9; }
 
 .mention-row{ align-items:flex-start; }
 .mention-row-body{ min-width:0; flex:1; }
@@ -360,15 +354,14 @@ label{ display:block; font-size:10.5px; font-weight:600; letter-spacing:.02em; c
 .chat-message-own .chat-bubble .record-link{ background:rgba(255,255,255,.2); border-color:transparent; color:#fff; }
 .chat-message-own .chat-bubble .record-link:hover{ background:#fff; color:var(--accent-dark); }
 
-.record-link-picker{ position:relative; }
-.record-link-panel{
-  position:absolute; right:0; bottom:calc(100% + 6px); width:280px; max-width:calc(100vw - 32px); background:#fff;
-  border:1px solid var(--line-strong); border-radius:8px; box-shadow:0 10px 28px rgba(0,0,0,.14);
-  padding:8px; z-index:60;
+/* ---------- Inline "@"/"*" autocomplete (getypt, niet aangeklikt) ---------- */
+.inline-autocomplete-panel{
+  position:fixed; z-index:120; background:#fff; border:1px solid var(--line-strong); border-radius:8px;
+  box-shadow:0 10px 28px rgba(0,0,0,.14); padding:4px; max-height:220px; overflow-y:auto;
 }
-.record-link-panel input{ margin-bottom:6px; }
-.record-link-results{ max-height:220px; overflow-y:auto; }
-.record-link-results .empty-hint{ padding:8px 2px; }
+.inline-autocomplete-item{ padding:7px 10px; font-size:12.5px; border-radius:5px; cursor:pointer; white-space:nowrap; }
+.inline-autocomplete-item.active, .inline-autocomplete-item:hover{ background:var(--accent-bg); color:var(--accent-dark); }
+.inline-autocomplete-panel .empty-hint{ padding:7px 10px; font-size:12px; }
 
 /* ---------- Teamchat ---------- */
 .chat-card{ display:flex; flex-direction:column; gap:0; padding:0; overflow:hidden; background:#fafaf9; }
@@ -409,8 +402,6 @@ label{ display:block; font-size:10.5px; font-weight:600; letter-spacing:.02em; c
 
 .chat-input-row{ display:flex; gap:10px; align-items:flex-end; padding:14px 22px 20px; border-top:1px solid var(--line); background:#fff; }
 .chat-input-row textarea{ flex:1; resize:vertical; }
-.chat-card .chat-tools-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; padding:14px 22px 0; margin:0; background:#fff; }
-.chat-card .chat-tools-row .mention-buttons{ padding:0; margin:0; background:transparent; }
 
 /* ---------- Gewenst pakket (lead): combineerbare onderdelen ---------- */
 .package-picker{ display:flex; flex-direction:column; gap:2px; border:1px solid #d6d6d6; border-radius:var(--radius); padding:6px 8px; }

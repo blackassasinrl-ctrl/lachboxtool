@@ -399,10 +399,8 @@ async function copyNodeAsHtml(node){
 /* ---------- @Tags in notities/chat ----------
    Een vaste, bekende naam ("@Wout Gerrits") i.p.v. los te typen, zodat
    een tag altijd exact matcht met wie er echt bedoeld wordt — zie
-   LachboxOS.auth.knownTeamNames(). Geen live autocomplete-popup (dat
-   is met een kale <textarea> lastig goed te doen); in plaats daarvan
-   een rijtje "+ @Naam"-knopjes die de tag op de cursorpositie plakken,
-   dus nooit een typefout in een naam. */
+   LachboxOS.auth.knownTeamNames(). Getypt (niet aangeklikt): zie
+   attachInlineAutocomplete() verderop. */
 function knownNamesSorted(){
   const names = (LachboxOS.auth && LachboxOS.auth.knownTeamNames && LachboxOS.auth.knownTeamNames()) || [];
   // Langste naam eerst, anders matcht "Mats" al binnen "Mats Coenen".
@@ -460,86 +458,109 @@ function renderTextWithMentions(text){
   if (lastIndex < text.length) frag.appendChild(document.createTextNode(text.slice(lastIndex)));
   return frag;
 }
-function buildMentionButtons(onInsert){
-  const wrap = make("div", "mention-buttons");
-  knownNamesSorted().forEach(name => {
-    const btn = make("button", "mention-btn", "+ @" + name);
-    btn.type = "button";
-    btn.addEventListener("click", () => onInsert(name));
-    wrap.appendChild(btn);
-  });
-  return wrap;
+/* ---------- Items voor de inline autocomplete hieronder ---------- */
+function mentionAutocompleteItems(query){
+  const q = query.toLowerCase();
+  return knownNamesSorted()
+    .filter(name => name.toLowerCase().includes(q))
+    .map(name => ({ label: "@" + name, insertText: "@" + name }));
 }
-function insertTextAtCursor(input, text){
-  const start = input.selectionStart != null ? input.selectionStart : input.value.length;
-  const end = input.selectionEnd != null ? input.selectionEnd : input.value.length;
-  const before = input.value.slice(0, start);
-  const after = input.value.slice(end);
-  const spacer = (before.length && !/\s$/.test(before)) ? " " : "";
-  const insertText = text + " ";
-  input.value = before + spacer + insertText + after;
-  input.dispatchEvent(new Event("input"));
-  input.focus();
-  const pos = (before + spacer + insertText).length;
-  input.setSelectionRange(pos, pos);
-}
-function insertMentionAtCursor(input, name){
-  insertTextAtCursor(input, "@" + name);
-}
-function insertRecordLinkAtCursor(input, type, id, label){
-  insertTextAtCursor(input, encodeRecordLink(type, id, label));
+function recordLinkAutocompleteItems(query){
+  if (!LachboxOS.search) return [];
+  return LachboxOS.search.resultsFor(query).map(item => ({
+    label: (RECORD_LINK_ICONS[item.recordType] || "🔗") + " " + item.label + "  ·  " + item.type,
+    insertText: encodeRecordLink(item.recordType, item.id, item.label)
+  }));
 }
 
-/* ---------- Zoek-/koppel-popover: klant/lead/event/factuur/review ----------
-   Herbruikbare kleine zoekbox (input + live resultaten) die op elk
-   moment ergens onder een knop getoond kan worden — gebruikt door de
-   chat voor "koppel een record", maar los van chat-specifieke opmaak. */
-function buildRecordSearchPopover(onPick){
-  const wrap = make("div", "record-link-picker");
-  const toggleBtn = make("button", "mention-btn", "🔗 Koppelen");
-  toggleBtn.type = "button";
-  const panel = make("div", "record-link-panel");
+/* ---------- Inline "@"/"*" autocomplete ----------
+   Typ "@" voor een teamlid-tag of "*" om een klant/lead/event/factuur/
+   review te koppelen: een dropdown eronder filtert live mee terwijl je
+   typt, pijltjes wisselen de markering, Tab of Enter kiest de gemarkeerde
+   match, Esc annuleert. Werkt op elke <input>/<textarea>; het paneel
+   hangt los aan <body> zodat het nooit de layout van de pagina eromheen
+   verstoort (ook prima bruikbaar binnen een modal). */
+function attachInlineAutocomplete(input, trigger, getItems, opts){
+  opts = opts || {};
+  const minChars = opts.minChars || 0;
+  const panel = make("div", "inline-autocomplete-panel");
   panel.hidden = true;
-  const input = document.createElement("input");
-  input.type = "text";
-  input.placeholder = "Zoek klant, lead, event, factuur of review…";
-  panel.appendChild(input);
-  const results = make("div", "record-link-results");
-  panel.appendChild(results);
+  document.body.appendChild(panel);
 
-  function renderResults(){
-    clear(results);
-    const items = (LachboxOS.search ? LachboxOS.search.resultsFor(input.value) : []);
-    if (!items.length){
-      results.appendChild(make("div", "empty-hint", input.value.trim() ? "Niets gevonden." : "Typ om te zoeken…"));
-      return;
+  let items = [], activeIndex = 0, range = null;
+
+  function queryRange(){
+    const pos = input.selectionStart;
+    if (pos == null) return null;
+    const value = input.value;
+    let i = pos - 1;
+    while (i >= 0 && value[i] !== trigger){
+      if (/\s/.test(value[i])) return null;
+      i--;
     }
-    items.forEach(item => {
-      const row = make("div", "sidebar-search-item");
-      const top = make("div", "sidebar-search-item-top");
-      top.appendChild(make("span", "sidebar-search-type", item.type));
-      top.appendChild(make("span", "sidebar-search-label", item.label));
-      row.appendChild(top);
-      if (item.sub) row.appendChild(make("div", "sidebar-search-sub", item.sub));
-      row.addEventListener("mousedown", (e) => {
-        e.preventDefault();
-        panel.hidden = true;
-        input.value = "";
-        onPick(item.recordType, item.id, item.label);
-      });
-      results.appendChild(row);
-    });
+    if (i < 0 || value[i] !== trigger) return null;
+    if (i > 0 && !/\s/.test(value[i - 1])) return null; // trigger moet aan het begin van een woord staan (geen e-mailadres o.i.d.)
+    return { start: i, end: pos, query: value.slice(i + 1, pos) };
   }
-  input.addEventListener("input", renderResults);
-  toggleBtn.addEventListener("click", () => {
-    panel.hidden = !panel.hidden;
-    if (!panel.hidden){ renderResults(); setTimeout(() => input.focus(), 20); }
-  });
-  document.addEventListener("click", (e) => { if (!wrap.contains(e.target)) panel.hidden = true; });
 
-  wrap.appendChild(toggleBtn);
-  wrap.appendChild(panel);
-  return wrap;
+  function close(){ panel.hidden = true; items = []; range = null; }
+
+  function position(){
+    const r = input.getBoundingClientRect();
+    panel.style.left = Math.round(r.left) + "px";
+    panel.style.top = Math.round(r.bottom + 4) + "px";
+    panel.style.minWidth = Math.round(Math.min(Math.max(r.width, 220), 320)) + "px";
+  }
+
+  function render(){
+    clear(panel);
+    if (!items.length){
+      const hint = range.query.length < minChars ? "Typ verder om te zoeken…" : "Niets gevonden.";
+      panel.appendChild(make("div", "empty-hint", hint));
+    } else {
+      items.forEach((item, idx) => {
+        const row = make("div", "inline-autocomplete-item" + (idx === activeIndex ? " active" : ""), item.label);
+        row.addEventListener("mousedown", (e) => { e.preventDefault(); pick(idx); });
+        panel.appendChild(row);
+      });
+    }
+    position();
+    panel.hidden = false;
+  }
+
+  function pick(idx){
+    const item = items[idx];
+    if (!item || !range) return;
+    const before = input.value.slice(0, range.start);
+    const after = input.value.slice(range.end);
+    const insertText = item.insertText + " ";
+    input.value = before + insertText + after;
+    const pos = (before + insertText).length;
+    close();
+    input.dispatchEvent(new Event("input"));
+    input.focus();
+    input.setSelectionRange(pos, pos);
+  }
+
+  function refresh(){
+    range = queryRange();
+    if (!range){ close(); return; }
+    items = range.query.length < minChars ? [] : (getItems(range.query) || []);
+    activeIndex = 0;
+    render();
+  }
+
+  input.addEventListener("input", refresh);
+  input.addEventListener("click", refresh);
+  input.addEventListener("keydown", (e) => {
+    if (panel.hidden) return;
+    if (e.key === "Escape"){ close(); return; }
+    if (!items.length) return; // laat Tab/Enter/pijltjes gewoon werken bij "niets gevonden"
+    if (e.key === "ArrowDown"){ e.preventDefault(); e.stopImmediatePropagation(); activeIndex = Math.min(activeIndex + 1, items.length - 1); render(); }
+    else if (e.key === "ArrowUp"){ e.preventDefault(); e.stopImmediatePropagation(); activeIndex = Math.max(activeIndex - 1, 0); render(); }
+    else if (e.key === "Tab" || e.key === "Enter"){ e.preventDefault(); e.stopImmediatePropagation(); pick(activeIndex); }
+  });
+  input.addEventListener("blur", () => setTimeout(close, 150));
 }
 
 LachboxOS.utils = {
@@ -554,8 +575,9 @@ LachboxOS.utils = {
   showToast, askConfirm, openModal,
   fieldRow, textField, selectField,
   buildEmailSignatureNode, copyNodeAsHtml, currentSenderName,
-  textMentionsName, renderTextWithMentions, buildMentionButtons, insertMentionAtCursor,
-  encodeRecordLink, navigateToRecordLink, insertRecordLinkAtCursor, buildRecordSearchPopover
+  textMentionsName, renderTextWithMentions,
+  encodeRecordLink, navigateToRecordLink,
+  mentionAutocompleteItems, recordLinkAutocompleteItems, attachInlineAutocomplete
 };
 
 })();
