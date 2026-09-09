@@ -63,6 +63,13 @@ function personalPhone(){
   return meta.phone || KNOWN_TEAM_PHONES[displayName()] || "";
 }
 
+// Voor @tags in notities en de chat: een vaste lijst namen om uit te
+// kiezen (i.p.v. los te typen, zodat een tag altijd exact matcht).
+// Zelfde bekende-teamlijst als hierboven — één bron voor beide.
+function knownTeamNames(){
+  return Object.keys(KNOWN_TEAM_PHONES);
+}
+
 function showView(id){
   ["loginView", "appShell"].forEach(viewId => {
     utils().el(viewId).hidden = (viewId !== id);
@@ -231,6 +238,6 @@ async function init(onAuthenticated){
   });
 }
 
-LachboxOS.auth = { init, displayName, personalPhone };
+LachboxOS.auth = { init, displayName, personalPhone, knownTeamNames };
 
 })();

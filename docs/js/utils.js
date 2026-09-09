@@ -396,6 +396,60 @@ async function copyNodeAsHtml(node){
   }catch(e2){ return false; }
 }
 
+/* ---------- @Tags in notities/chat ----------
+   Een vaste, bekende naam ("@Wout Gerrits") i.p.v. los te typen, zodat
+   een tag altijd exact matcht met wie er echt bedoeld wordt — zie
+   LachboxOS.auth.knownTeamNames(). Geen live autocomplete-popup (dat
+   is met een kale <textarea> lastig goed te doen); in plaats daarvan
+   een rijtje "+ @Naam"-knopjes die de tag op de cursorpositie plakken,
+   dus nooit een typefout in een naam. */
+function knownNamesSorted(){
+  const names = (LachboxOS.auth && LachboxOS.auth.knownTeamNames && LachboxOS.auth.knownTeamNames()) || [];
+  // Langste naam eerst, anders matcht "Mats" al binnen "Mats Coenen".
+  return names.slice().sort((a, b) => b.length - a.length);
+}
+function textMentionsName(text, name){
+  return !!(text && name && text.includes("@" + name));
+}
+function renderTextWithMentions(text){
+  const frag = document.createDocumentFragment();
+  if (!text) return frag;
+  const names = knownNamesSorted();
+  if (!names.length){ frag.appendChild(document.createTextNode(text)); return frag; }
+  const pattern = new RegExp("@(" + names.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|") + ")\\b", "g");
+  let lastIndex = 0, match;
+  while ((match = pattern.exec(text))){
+    if (match.index > lastIndex) frag.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
+    frag.appendChild(make("span", "mention", "@" + match[1]));
+    lastIndex = match.index + match[0].length;
+  }
+  if (lastIndex < text.length) frag.appendChild(document.createTextNode(text.slice(lastIndex)));
+  return frag;
+}
+function buildMentionButtons(onInsert){
+  const wrap = make("div", "mention-buttons");
+  knownNamesSorted().forEach(name => {
+    const btn = make("button", "mention-btn", "+ @" + name);
+    btn.type = "button";
+    btn.addEventListener("click", () => onInsert(name));
+    wrap.appendChild(btn);
+  });
+  return wrap;
+}
+function insertMentionAtCursor(input, name){
+  const insertText = "@" + name + " ";
+  const start = input.selectionStart != null ? input.selectionStart : input.value.length;
+  const end = input.selectionEnd != null ? input.selectionEnd : input.value.length;
+  const before = input.value.slice(0, start);
+  const after = input.value.slice(end);
+  const spacer = (before.length && !/\s$/.test(before)) ? " " : "";
+  input.value = before + spacer + insertText + after;
+  input.dispatchEvent(new Event("input"));
+  input.focus();
+  const pos = (before + spacer + insertText).length;
+  input.setSelectionRange(pos, pos);
+}
+
 LachboxOS.utils = {
   uuid,
   roundMoney, formatCurrency,
@@ -407,7 +461,8 @@ LachboxOS.utils = {
   el, make, clear, tableScrollWrap,
   showToast, askConfirm, openModal,
   fieldRow, textField, selectField,
-  buildEmailSignatureNode, copyNodeAsHtml, currentSenderName
+  buildEmailSignatureNode, copyNodeAsHtml, currentSenderName,
+  textMentionsName, renderTextWithMentions, buildMentionButtons, insertMentionAtCursor
 };
 
 })();

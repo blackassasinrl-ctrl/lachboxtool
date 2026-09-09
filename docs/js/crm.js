@@ -241,7 +241,9 @@ function openLeadModal(existingLead, onSaved){
         utils().textField("Volgende actie", lead.nextAction, v => lead.nextAction = v, { placeholder: "bijv. Bellen over offerte" }),
         utils().textField("Opvolgdatum", lead.nextActionDate, v => lead.nextActionDate = v, { type: "date" })
       ));
-      body.appendChild(utils().textField("Notities", lead.notes, v => lead.notes = v, { textarea: true, rows: 3 }));
+      const leadNotesField = utils().textField("Notities", lead.notes, v => lead.notes = v, { textarea: true, rows: 3 });
+      body.appendChild(leadNotesField);
+      body.appendChild(utils().buildMentionButtons(name => utils().insertMentionAtCursor(leadNotesField._input, name)));
 
       const footer = utils().make("div", "modal-footer");
       if (isEdit){
@@ -751,7 +753,9 @@ function renderCustomerDetailPage(container, params){
     utils().textField("E-mailadres", customer.email, v => { customer.email = v; markDirty(); }, { type: "email" }),
     utils().textField("Telefoonnummer", customer.phone, v => { customer.phone = v; markDirty(); })
   ));
-  infoSection.appendChild(utils().textField("Notities", customer.notes, v => { customer.notes = v; markDirty(); }, { textarea: true, rows: 3 }));
+  const customerNotesField = utils().textField("Notities", customer.notes, v => { customer.notes = v; markDirty(); }, { textarea: true, rows: 3 });
+  infoSection.appendChild(customerNotesField);
+  infoSection.appendChild(utils().buildMentionButtons(name => utils().insertMentionAtCursor(customerNotesField._input, name)));
   const saveBtn = utils().make("button", "btn primary small", "Wijzigingen opslaan");
   saveBtn.type = "button";
   saveBtn.disabled = true;

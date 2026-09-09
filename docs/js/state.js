@@ -13,7 +13,7 @@ window.LachboxOS = window.LachboxOS || {};
 const storage = () => LachboxOS.storage;
 
 const cache = {
-  customers: [], leads: [], events: [], checklists: [], invoices: [], reviews: [],
+  customers: [], leads: [], events: [], checklists: [], invoices: [], reviews: [], messages: [],
   settings: null, counter: null,
   loaded: false
 };
@@ -44,6 +44,10 @@ async function refreshInvoices(){ cache.invoices = await storage().getInvoices()
 async function refreshReviews(){ cache.reviews = await storage().getReviews(); emit("reviews:changed", cache.reviews); return cache.reviews; }
 async function refreshSettings(){ cache.settings = await storage().getSettings(); emit("settings:changed", cache.settings); return cache.settings; }
 async function refreshCounter(){ cache.counter = await storage().getInvoiceCounter(); return cache.counter; }
+// Los van refreshAll() gehouden: chat wordt pas geladen zodra iemand
+// het Chat-scherm daadwerkelijk opent, niet al bij het opstarten van
+// de rest van de app (die data heeft niemand anders nodig).
+async function refreshMessages(){ cache.messages = await storage().getMessages(); emit("messages:changed", cache.messages); return cache.messages; }
 
 async function refreshAll(){
   await Promise.all([
@@ -67,7 +71,7 @@ function initRealtime(){
   const refreshByTable = {
     customers: refreshCustomers, leads: refreshLeads, events: refreshEvents,
     checklists: refreshChecklists, invoices: refreshInvoices, reviews: refreshReviews,
-    settings: refreshSettings
+    settings: refreshSettings, messages: refreshMessages
   };
   realtimeChannel = LachboxOS.supabaseClient.channel("lachbox-os-changes");
   Object.keys(refreshByTable).forEach(table => {
@@ -121,6 +125,7 @@ LachboxOS.state = {
   on, off, emit,
   refreshCustomers, refreshLeads, refreshEvents, refreshChecklists,
   refreshInvoices, refreshReviews, refreshSettings, refreshCounter, refreshAll,
+  refreshMessages,
   initRealtime,
   getCustomerById, customerDisplayName,
   eventsForCustomer, invoicesForCustomer, leadsForCustomer, reviewsForCustomer,

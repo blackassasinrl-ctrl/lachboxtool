@@ -129,6 +129,37 @@ function computeActions(){
   return actions;
 }
 
+/* ---------- @Tags: notities bij leads/klanten waarin jij getagd bent ----------
+   Scant lead.notes/customer.notes op "@JouwNaam" (zie utils.js:
+   textMentionsName/renderTextWithMentions en auth.js: knownTeamNames).
+   Geen aparte notificatietabel nodig — de notitie zelf is de bron. */
+function computeMentions(){
+  const myName = LachboxOS.auth && LachboxOS.auth.displayName && LachboxOS.auth.displayName();
+  if (!myName) return [];
+  const c = state().cache;
+  const hits = [];
+  c.leads.forEach(lead => {
+    if (utils().textMentionsName(lead.notes, myName)){
+      const customer = state().getCustomerById(lead.customerId);
+      hits.push({
+        text: `Lead ${state().customerDisplayName(customer) || "onbekende klant"}`,
+        snippet: lead.notes,
+        onClick: () => { if (LachboxOS.crm) LachboxOS.crm.openLeadById(lead.id); }
+      });
+    }
+  });
+  c.customers.forEach(customer => {
+    if (utils().textMentionsName(customer.notes, myName)){
+      hits.push({
+        text: `Klant ${state().customerDisplayName(customer) || "onbekend"}`,
+        snippet: customer.notes,
+        onClick: () => nav().navigateTo("crm/customers/" + customer.id)
+      });
+    }
+  });
+  return hits;
+}
+
 function kpiCard(label, value, sub){
   const card = utils().make("div", "kpi-card");
   card.appendChild(utils().make("div", "kpi-label", label));
@@ -141,6 +172,7 @@ function renderContent(container){
   const u = utils(), s = state();
   const kpis = computeKpis();
   const actions = computeActions();
+  const mentions = computeMentions();
 
   const page = u.make("div", "page");
   page.appendChild(u.make("h1", "page-title", "Dashboard"));
@@ -195,6 +227,29 @@ function renderContent(container){
     actionsPanel.appendChild(list);
   }
   grid.appendChild(actionsPanel);
+
+  // Voor jou getagd (@mentions in notities)
+  const mentionsPanel = u.make("div", "panel");
+  mentionsPanel.appendChild(u.make("div", "panel-title", "Voor jou getagd"));
+  if (mentions.length === 0){
+    mentionsPanel.appendChild(u.make("div", "empty-hint", "Niemand heeft je getagd in een notitie."));
+  } else {
+    const list = u.make("div", "action-list");
+    mentions.forEach(m => {
+      const row = u.make("div", "action-row action-info action-clickable mention-row");
+      row.appendChild(u.make("span", "action-dot"));
+      const textWrap = u.make("div", "mention-row-body");
+      textWrap.appendChild(u.make("div", null, m.text));
+      const snippet = u.make("div", "mention-snippet");
+      snippet.appendChild(u.renderTextWithMentions(m.snippet));
+      textWrap.appendChild(snippet);
+      row.appendChild(textWrap);
+      row.addEventListener("click", m.onClick);
+      list.appendChild(row);
+    });
+    mentionsPanel.appendChild(list);
+  }
+  grid.appendChild(mentionsPanel);
 
   // Recente leads
   const leadsPanel = u.make("div", "panel");

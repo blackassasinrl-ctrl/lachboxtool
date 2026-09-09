@@ -157,5 +157,17 @@ create policy "authenticated read/write" on invoice_counter
 create trigger invoice_counter_set_updated_at before update on invoice_counter
   for each row execute function set_updated_at();
 
+-- ---------- messages (teamchat, één gedeeld kanaal) ----------
+create table messages (
+  id uuid primary key default gen_random_uuid(),
+  data jsonb not null default '{}'::jsonb,
+  created_by uuid references auth.users(id) default auth.uid(),
+  created_at timestamptz not null default now()
+);
+create index messages_created_at_idx on messages(created_at);
+alter table messages enable row level security;
+create policy "authenticated read/write" on messages
+  for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+
 -- ---------- Realtime: laat de app live wijzigingen ontvangen ----------
-alter publication supabase_realtime add table customers, leads, events, checklists, invoices, reviews, settings;
+alter publication supabase_realtime add table customers, leads, events, checklists, invoices, reviews, settings, messages;

@@ -235,6 +235,22 @@ async function saveInvoiceCounter(counter){
   return { id: data.id, year: data.year, month: data.month, lastNumber: data.last_number };
 }
 
+/* ---------- Teamchat (één gedeeld kanaal, geen threads) ----------
+   Bewust buiten backup/restore en demodata gehouden — dat is bedoeld
+   voor bedrijfsdata, een gespreksgeschiedenis hoort daar niet zomaar
+   stilletjes in mee te gaan bij een restore. */
+async function getMessages(limit){
+  const { data, error } = await sb().from("messages").select("*").order("created_at", { ascending: true }).limit(limit || 300);
+  if (error) throw error;
+  return rowsToRecords(data);
+}
+async function saveMessage(message){
+  if (!message.id) message.id = LachboxOS.utils.uuid();
+  if (!message.createdAt) message.createdAt = new Date().toISOString();
+  return upsertRow("messages", { id: message.id, data: message });
+}
+async function deleteMessage(id){ return deleteRow("messages", id); }
+
 /* ---------- Backup / restore ---------- */
 const ALL_STORES = ["customers", "leads", "events", "checklists", "invoices", "reviews", "settings"];
 
@@ -293,6 +309,7 @@ LachboxOS.storage = {
   getReviews, getReview, getReviewByEvent, saveReview, deleteReview,
   getSettings, saveSettings, defaultSettings,
   getInvoiceCounter, saveInvoiceCounter,
+  getMessages, saveMessage, deleteMessage,
   exportAllData, importAllData,
   clearDemoData, hasDemoData
 };
