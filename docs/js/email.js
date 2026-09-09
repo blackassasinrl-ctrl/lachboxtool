@@ -53,12 +53,16 @@ function emailSettingsOf(settings){ return (settings && settings.email) || {}; }
    al in de volledige (echte) handtekening met logo die hieronder op
    deze pagina te zien is, en die je eenmalig instelt in Outlook/Gmail
    (zie Instellingen > E-mailhandtekening) zodat hij er dan altijd
-   automatisch bij staat. */
+   automatisch bij staat.
+   De naam is die van de ingelogde gebruiker (zie auth.js: elk teamlid
+   tekent met zijn eigen naam, niet met een gedeelde "Team Lachbox").
+   Alleen de eerste regel van "Standaard afsluiting e-mail" wordt
+   gebruikt, zodat een oude, nu overbodige naam op regel 2 van dat veld
+   niet nog eens verschijnt naast de naam van de inlogger. */
 function buildSignature(settings){
-  const company = companyOf(settings);
   const emailSettings = emailSettingsOf(settings);
-  const closing = (emailSettings.signOff || "Met vriendelijke groet,").trim();
-  const signerName = emailSettings.senderName || company.name || "Lachbox";
+  const closing = (emailSettings.signOff || "Met vriendelijke groet,").split("\n")[0].trim();
+  const signerName = utils().currentSenderName(settings);
   return `${closing}\n\n${signerName}`;
 }
 

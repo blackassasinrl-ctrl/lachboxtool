@@ -19,6 +19,31 @@ function client(){
   return LachboxOS.supabaseClient;
 }
 
+/* ---------- Wie is er ingelogd? ----------
+   Voor de "Groet, [naam]" in e-mailsjablonen (sectie e-mail): elk
+   teamlid ondertekent met zijn eigen naam, niet met een gedeelde
+   "Team Lachbox". De naam wordt opgeslagen op het Supabase-account zelf
+   (user_metadata.full_name) — dat is per persoon, werkt op elk device
+   waar diegene inlogt, en staat los van de gedeelde bedrijfsinstellingen
+   in Instellingen (die blijven voor iedereen hetzelfde: logo, telefoon,
+   adres, ...). Nog geen naam ingesteld? Dan leiden we een redelijke
+   default af uit het e-mailadres, zodat het nooit leeg is. */
+let currentSession = null;
+
+function deriveNameFromEmail(email){
+  if (!email) return "";
+  const local = email.split("@")[0] || "";
+  const words = local.split(/[._-]+/).filter(Boolean);
+  if (!words.length) return "";
+  return words.map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+}
+
+function displayName(){
+  if (!currentSession || !currentSession.user) return "";
+  const meta = currentSession.user.user_metadata || {};
+  return meta.full_name || deriveNameFromEmail(currentSession.user.email);
+}
+
 function showView(id){
   ["loginView", "appShell"].forEach(viewId => {
     utils().el(viewId).hidden = (viewId !== id);
@@ -26,11 +51,16 @@ function showView(id){
 }
 
 function renderAccount(session){
+  currentSession = session;
   const wrap = utils().el("sidebarAccount");
   if (!wrap) return;
   utils().clear(wrap);
+  wrap.appendChild(utils().make("div", "sidebar-account-name", displayName()));
   wrap.appendChild(utils().make("div", "sidebar-account-email", session.user.email));
   const actions = utils().make("div", "sidebar-account-actions");
+  const changeNameBtn = utils().make("button", "sidebar-account-logout", "Naam wijzigen");
+  changeNameBtn.type = "button";
+  changeNameBtn.addEventListener("click", openChangeNameModal);
   const changePwBtn = utils().make("button", "sidebar-account-logout", "Wachtwoord wijzigen");
   changePwBtn.type = "button";
   changePwBtn.addEventListener("click", openChangePasswordModal);
@@ -40,9 +70,44 @@ function renderAccount(session){
     logoutBtn.disabled = true;
     await client().auth.signOut();
   });
+  actions.appendChild(changeNameBtn);
   actions.appendChild(changePwBtn);
   actions.appendChild(logoutBtn);
   wrap.appendChild(actions);
+}
+
+function openChangeNameModal(){
+  utils().openModal({
+    title: "Jouw naam",
+    build(body, modal){
+      body.appendChild(utils().make("div", "field-hint", "Deze naam wordt gebruikt als ondertekening ('Groet, ...') in de e-mailsjablonen, en staat los van de gedeelde bedrijfsgegevens bij Instellingen."));
+      const nameField = utils().textField("Naam", displayName(), () => {}, { placeholder: "bijv. Wout Gerrits" });
+      body.appendChild(nameField);
+      const msg = utils().make("div", "login-message");
+      body.appendChild(msg);
+      const footer = utils().make("div", "modal-footer");
+      const actions = utils().make("div", "modal-footer-actions");
+      const cancelBtn = utils().make("button", "btn secondary small", "Annuleren");
+      cancelBtn.type = "button"; cancelBtn.addEventListener("click", () => modal.close());
+      const saveBtn = utils().make("button", "btn primary small", "Opslaan");
+      saveBtn.type = "button";
+      saveBtn.addEventListener("click", async () => {
+        const naam = nameField._input.value.trim();
+        if (!naam){ msg.className = "login-message error"; msg.textContent = "Vul een naam in."; return; }
+        saveBtn.disabled = true;
+        const { data, error } = await client().auth.updateUser({ data: { full_name: naam } });
+        saveBtn.disabled = false;
+        if (error){ msg.className = "login-message error"; msg.textContent = error.message; return; }
+        if (data && data.user) currentSession = Object.assign({}, currentSession, { user: data.user });
+        modal.close();
+        renderAccount(currentSession);
+        utils().showToast("Naam opgeslagen.", "success");
+      });
+      actions.appendChild(cancelBtn); actions.appendChild(saveBtn);
+      footer.appendChild(actions);
+      body.appendChild(footer);
+    }
+  });
 }
 
 function openChangePasswordModal(){
@@ -144,6 +209,6 @@ async function init(onAuthenticated){
   });
 }
 
-LachboxOS.auth = { init };
+LachboxOS.auth = { init, displayName };
 
 })();

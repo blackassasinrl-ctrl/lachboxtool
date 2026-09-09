@@ -340,10 +340,11 @@ function renderReviewsAndEmailSection(container, settings, markDirty){
   section.appendChild(utils().make("h2", "section-heading", "Reviews & e-mail"));
   section.appendChild(fieldRow(
     textField("Google review-URL", settings.reviews.googleReviewUrl, v => { settings.reviews.googleReviewUrl = v; markDirty(); }),
-    textField("Standaard afzendernaam", settings.email.senderName, v => { settings.email.senderName = v; markDirty(); })
+    textField("Afzendernaam (terugval)", settings.email.senderName, v => { settings.email.senderName = v; markDirty(); })
   ));
+  section.appendChild(utils().make("div", "field-hint", "Elk teamlid tekent e-mails automatisch met zijn eigen naam (in te stellen via 'Naam wijzigen' onderaan de zijbalk). Deze afzendernaam wordt alleen gebruikt als terugval, bijvoorbeeld wanneer er niemand ingelogd is."));
   section.appendChild(textField("Standaard afsluiting e-mail", settings.email.signOff, v => { settings.email.signOff = v; markDirty(); }, { textarea: true, rows: 2, placeholder: "bijv. Met vriendelijke groet," }));
-  section.appendChild(utils().make("div", "field-hint", "Onder deze afsluiting plakt elk e-mailsjabloon automatisch de afzendernaam en de bedrijfsgegevens (telefoon, e-mail, adres) uit de sectie hierboven."));
+  section.appendChild(utils().make("div", "field-hint", "Onder deze afsluiting plakt elk e-mailsjabloon automatisch de naam van de inlogger. Gebruik hier alleen de afscheidszin (één regel) — een naam op een tweede regel wordt genegeerd."));
   container.appendChild(section);
 }
 

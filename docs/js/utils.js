@@ -278,6 +278,20 @@ function selectField(label, value, options, onChange){
   return wrap;
 }
 
+/* ---------- Wie ondertekent? ----------
+   Elk teamlid tekent met zijn eigen naam (ingesteld bij het account,
+   zie auth.js), niet met een gedeelde bedrijfsnaam — dat is bewust per
+   persoon en staat los van de gedeelde instellingen. Alleen als er
+   (nog) niemand ingelogd is — bijvoorbeeld tijdens het testen — vallen
+   we terug op de gedeelde instellingen. */
+function currentSenderName(settings){
+  const fromAccount = LachboxOS.auth && LachboxOS.auth.displayName && LachboxOS.auth.displayName();
+  if (fromAccount) return fromAccount;
+  const e = (settings && settings.email) || {};
+  const c = (settings && settings.company) || {};
+  return e.senderName || c.name || "Lachbox";
+}
+
 /* ---------- E-mailhandtekening (met logo) ----------
    Gedeeld door Instellingen (waar 'm je kopieert naar Outlook/Gmail) en
    de e-mailgenerator (waar je 'm ziet als voorbeeld van wat er straks
@@ -285,7 +299,6 @@ function selectField(label, value, options, onChange){
    i.p.v. string-HTML, dus geen handmatige escaping nodig. */
 function buildEmailSignatureNode(settings){
   const c = (settings && settings.company) || {};
-  const e = (settings && settings.email) || {};
   const wrap = document.createElement("table");
   wrap.setAttribute("cellpadding", "0");
   wrap.setAttribute("cellspacing", "0");
@@ -317,7 +330,7 @@ function buildEmailSignatureNode(settings){
   nameLine.style.fontWeight = "700";
   nameLine.style.fontSize = "14px";
   nameLine.style.marginBottom = "6px";
-  nameLine.textContent = e.senderName || c.name || "Lachbox";
+  nameLine.textContent = currentSenderName(settings);
   infoCell.appendChild(nameLine);
 
   function contactLine(label, value, href){
@@ -387,7 +400,7 @@ LachboxOS.utils = {
   el, make, clear, tableScrollWrap,
   showToast, askConfirm, openModal,
   fieldRow, textField, selectField,
-  buildEmailSignatureNode, copyNodeAsHtml
+  buildEmailSignatureNode, copyNodeAsHtml, currentSenderName
 };
 
 })();
