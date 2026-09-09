@@ -332,20 +332,45 @@ label{ display:block; font-size:10.5px; font-weight:600; letter-spacing:.02em; c
 .mention-snippet{ font-size:11.5px; color:var(--muted); margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
 /* ---------- Teamchat ---------- */
-.chat-card{ display:flex; flex-direction:column; gap:0; padding:0; overflow:hidden; }
-.chat-messages{ display:flex; flex-direction:column; gap:14px; padding:20px 22px; max-height:520px; overflow-y:auto; }
-.chat-message-head{ display:flex; align-items:baseline; gap:8px; margin-bottom:3px; }
-.chat-message-sender{ font-weight:700; font-size:12.5px; }
-.chat-message-time{ font-size:11px; color:var(--faint); }
-.chat-message-delete{
-  margin-left:auto; border:none; background:transparent; color:var(--faint); cursor:pointer;
-  font-size:14px; line-height:1; padding:0 2px;
+.chat-card{ display:flex; flex-direction:column; gap:0; padding:0; overflow:hidden; background:#fafaf9; }
+.chat-messages{ display:flex; flex-direction:column; gap:2px; padding:20px 22px; max-height:560px; overflow-y:auto; background:#fafaf9; }
+
+.chat-message{ display:flex; align-items:flex-end; gap:9px; max-width:100%; }
+.chat-message + .chat-message{ margin-top:10px; }
+.chat-message.chat-message-grouped + .chat-message.chat-message-grouped,
+.chat-message + .chat-message.chat-message-grouped{ margin-top:3px; }
+.chat-message-other{ justify-content:flex-start; }
+.chat-message-own{ justify-content:flex-end; }
+
+.chat-avatar{
+  flex-shrink:0; width:28px; height:28px; border-radius:50%; background:#111; color:#fff;
+  display:flex; align-items:center; justify-content:center; font-size:10.5px; font-weight:700;
+  letter-spacing:.01em;
 }
-.chat-message-delete:hover{ color:var(--danger); }
-.chat-message-body{ font-size:13px; white-space:pre-wrap; word-break:break-word; }
-.chat-input-row{ display:flex; gap:10px; align-items:flex-end; padding:14px 22px 20px; border-top:1px solid var(--line); }
+.chat-message-grouped .chat-avatar{ visibility:hidden; } /* houdt de inspringing gelijk, zonder de avatar te herhalen */
+
+.chat-message-col{ display:flex; flex-direction:column; max-width:min(72%, 480px); }
+.chat-message-own .chat-message-col{ align-items:flex-end; }
+.chat-message-meta{ font-size:11px; color:var(--faint); margin:0 3px 3px; }
+.chat-message-own .chat-message-meta{ text-align:right; }
+
+.chat-bubble{
+  display:flex; align-items:flex-start; gap:6px; background:#fff; border:1px solid var(--line);
+  border-radius:14px 14px 14px 3px; padding:8px 12px; font-size:13px; line-height:1.5;
+}
+.chat-bubble-text{ white-space:pre-wrap; word-break:break-word; }
+.chat-message-own .chat-bubble{ background:#111; color:#fff; border-color:#111; border-radius:14px 14px 3px 14px; }
+.chat-message-own .chat-bubble .mention{ background:rgba(255,255,255,.18); color:#fff; }
+
+.chat-message-delete{
+  flex-shrink:0; border:none; background:transparent; color:rgba(255,255,255,.6); cursor:pointer;
+  font-size:13px; line-height:1.5; padding:0;
+}
+.chat-message-delete:hover{ color:#fff; }
+
+.chat-input-row{ display:flex; gap:10px; align-items:flex-end; padding:14px 22px 20px; border-top:1px solid var(--line); background:#fff; }
 .chat-input-row textarea{ flex:1; resize:vertical; }
-.chat-card .mention-buttons{ padding:14px 22px 0; margin:0; }
+.chat-card .mention-buttons{ padding:14px 22px 0; margin:0; background:#fff; }
 
 /* ---------- Gewenst pakket (lead): combineerbare onderdelen ---------- */
 .package-picker{ display:flex; flex-direction:column; gap:2px; border:1px solid #d6d6d6; border-radius:var(--radius); padding:6px 8px; }

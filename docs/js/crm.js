@@ -609,21 +609,25 @@ function renderCustomersListPage(container){
   header.appendChild(utils().make("h1", "page-title", "Klanten"));
   const newBtn = utils().make("button", "btn primary", "+ Nieuwe klant");
   newBtn.type = "button";
-  newBtn.addEventListener("click", () => openCustomerQuickCreateModal(c => {
-    // Rechtstreeks door naar "boeking + factuur maken" met deze klant al
-    // gekozen — anders moet je 'm daar zo weer opzoeken, en dat voelde
-    // (terecht) als hetzelfde drie keer doen. Annuleren in die stap laat
-    // je gewoon op de klantpagina staan, niets gaat verloren.
+  newBtn.addEventListener("click", () => openCustomerQuickCreateModal(async (c) => {
+    // Meteen een (nog lege) boeking bij deze klant aanmaken — zonder daar
+    // eerst een apart scherm voor in te hoeven vullen, dat voelde als
+    // hetzelfde drie keer doen. De factuur blijft bewust een latere,
+    // losse stap (via "Factuur maken" op de eventpagina, zoals altijd) —
+    // dan bepaalt diegene die 'm verstuurt zelf het moment.
+    try{
+      await storage().saveEvent({
+        customerId: c.id, leadId: null,
+        eventName: state().customerDisplayName(c) || "Nieuwe boeking",
+        eventType: "", date: "", startTime: "", endTime: "", location: "", address: "",
+        package: "", price: 0, extras: [], costs: [], discount: 0, staff: "", notes: "",
+        checklistId: null, invoiceId: null, status: "Gepland"
+      });
+      await state().refreshEvents();
+    }catch(e){
+      utils().showToast("Klant aangemaakt, maar de boeking kon niet automatisch aangemaakt worden: " + e.message, "error");
+    }
     nav().navigateTo("crm/customers/" + c.id);
-    LachboxOS.events.openEventCreateModal(async (event) => {
-      const invoice = await LachboxOS.invoices.createInvoiceFromEvent(event);
-      nav().navigateTo("invoices/" + invoice.id);
-    }, {
-      initialCustomerId: c.id,
-      title: "Boeking + factuur aanmaken",
-      saveLabel: "Boeking aanmaken",
-      savedToast: false
-    });
   }));
   header.appendChild(newBtn);
   page.appendChild(header);

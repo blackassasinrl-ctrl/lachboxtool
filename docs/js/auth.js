@@ -32,9 +32,40 @@ function client(){
    zodra iemand het zelf instelt, wint dat altijd. */
 let currentSession = null;
 
+/* Bekende doorkiesnummers, als startwaarde totdat iemand zijn eigen
+   nummer instelt via "Gegevens wijzigen" (dat wint dan altijd — zie
+   personalPhone() hieronder). De keys zijn ook de bron voor de @tag-
+   knopjes (knownTeamNames()) én voor de naam-gok hieronder — dus een
+   nieuw teamlid hier toevoegen maakt 'm overal bekend. */
+const KNOWN_TEAM_PHONES = {
+  "Wout Gerrits": "+31 6 12433663",
+  "Mats Kuypers": "+31 6 15651101",
+  "Mats Coenen": "+31 6 27822258"
+};
+
+// Probeert een e-mail-local-part (bijv. "matsc" of "wout.gerrits") te
+// herkennen als een van de bekende teamleden, zodat de naam meteen
+// goed staat zonder dat iemand eerst zelf "Gegevens wijzigen" hoeft te
+// gebruiken — en zodat @tags (die de volledige naam gebruiken) altijd
+// matchen met wie er werkelijk is ingelogd.
+function matchKnownName(localPart){
+  const compact = localPart.toLowerCase().replace(/[._-]+/g, "");
+  for (const fullName of Object.keys(KNOWN_TEAM_PHONES)){
+    const [first, ...restWords] = fullName.split(" ");
+    const firstLower = first.toLowerCase(), lastLower = restWords.join("").toLowerCase();
+    if (compact === firstLower) return fullName; // "wout" -> "Wout Gerrits"
+    if (compact.startsWith(firstLower) && lastLower.startsWith(compact.slice(firstLower.length))){
+      return fullName; // "matsc" / "mats.coenen" -> "Mats Coenen"
+    }
+  }
+  return null;
+}
+
 function deriveNameFromEmail(email){
   if (!email) return "";
   const local = email.split("@")[0] || "";
+  const known = matchKnownName(local);
+  if (known) return known;
   const words = local.split(/[._-]+/).filter(Boolean);
   if (!words.length) return "";
   return words.map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
@@ -45,17 +76,6 @@ function displayName(){
   const meta = currentSession.user.user_metadata || {};
   return meta.full_name || deriveNameFromEmail(currentSession.user.email);
 }
-
-/* Bekende doorkiesnummers, als startwaarde totdat iemand zijn eigen
-   nummer instelt via "Gegevens wijzigen" (dat wint dan altijd — zie
-   personalPhone() hieronder). Werkt op naam, dus dit klopt pas zodra
-   iemands naam bij "Naam wijzigen"/"Gegevens wijzigen" exact zo is
-   ingevuld. */
-const KNOWN_TEAM_PHONES = {
-  "Wout Gerrits": "+31 6 12433663",
-  "Mats Kuypers": "+31 6 15651101",
-  "Mats Coenen": "+31 6 27822258"
-};
 
 function personalPhone(){
   if (!currentSession || !currentSession.user) return "";

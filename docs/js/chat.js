@@ -26,6 +26,12 @@ function formatChatTime(iso){
   return d.toLocaleString("nl-NL", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 }
 
+function initials(name){
+  const parts = (name || "").trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "?";
+  return parts.slice(0, 2).map(w => w[0].toUpperCase()).join("");
+}
+
 function renderChatPage(container){
   const page = utils().make("div", "page chat-page");
   page.appendChild(utils().make("h1", "page-title", "Teamchat"));
@@ -57,12 +63,26 @@ function renderChatPage(container){
       return;
     }
     const myName = myDisplayName();
+    let lastSender = null;
     messages.forEach(msg => {
-      const row = utils().make("div", "chat-message");
-      const head = utils().make("div", "chat-message-head");
-      head.appendChild(utils().make("span", "chat-message-sender", msg.senderName || "Onbekend"));
-      head.appendChild(utils().make("span", "chat-message-time", formatChatTime(msg.createdAt)));
-      if (myName && msg.senderName === myName){
+      const isOwn = !!myName && msg.senderName === myName;
+      const grouped = msg.senderName === lastSender; // opeenvolgende berichten van dezelfde afzender: naam/avatar niet herhalen
+      lastSender = msg.senderName;
+
+      const row = utils().make("div", "chat-message" + (isOwn ? " chat-message-own" : " chat-message-other") + (grouped ? " chat-message-grouped" : ""));
+      if (!isOwn){
+        const avatar = utils().make("div", "chat-avatar", grouped ? "" : initials(msg.senderName));
+        row.appendChild(avatar);
+      }
+      const col = utils().make("div", "chat-message-col");
+      if (!grouped){
+        col.appendChild(utils().make("div", "chat-message-meta", (msg.senderName || "Onbekend") + " · " + formatChatTime(msg.createdAt)));
+      }
+      const bubble = utils().make("div", "chat-bubble");
+      const bubbleText = utils().make("div", "chat-bubble-text");
+      bubbleText.appendChild(utils().renderTextWithMentions(msg.body));
+      bubble.appendChild(bubbleText);
+      if (isOwn){
         const delBtn = utils().make("button", "chat-message-delete", "×");
         delBtn.type = "button";
         delBtn.title = "Bericht verwijderen";
@@ -70,12 +90,10 @@ function renderChatPage(container){
           try{ await storage().deleteMessage(msg.id); await state().refreshMessages(); }
           catch(e){ utils().showToast("Verwijderen is niet gelukt: " + e.message, "error"); }
         });
-        head.appendChild(delBtn);
+        bubble.appendChild(delBtn);
       }
-      row.appendChild(head);
-      const body = utils().make("div", "chat-message-body");
-      body.appendChild(utils().renderTextWithMentions(msg.body));
-      row.appendChild(body);
+      col.appendChild(bubble);
+      row.appendChild(col);
       messageList.appendChild(row);
     });
     messageList.scrollTop = messageList.scrollHeight;

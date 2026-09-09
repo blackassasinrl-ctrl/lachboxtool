@@ -36,18 +36,78 @@ function emit(event, payload){
   });
 }
 
-async function refreshCustomers(){ cache.customers = await storage().getCustomers(); emit("customers:changed", cache.customers); return cache.customers; }
-async function refreshLeads(){ cache.leads = await storage().getLeads(); emit("leads:changed", cache.leads); return cache.leads; }
+/* ---------- @Tags: actief melden i.p.v. alleen het dashboardpaneel ----------
+   Elke refresh die via Realtime binnenkomt (een collega slaat iets op,
+   ongeacht welk scherm jij open hebt) vergelijkt de oude met de nieuwe
+   data; duikt daar een "@Jouw Naam" in op die er bij de vorige stand
+   nog niet stond, dan verschijnt er een toast — dat is de "melding"
+   voor tags, zonder dat daar e-mail/push-infrastructuur voor nodig is.
+   Alleen ná de eerste keer laden (cache.loaded / messagesLoadedOnce):
+   anders zou elke al-bestaande tag bij het opstarten/eerste keer Chat
+   openen in één keer als "nieuw" gemeld worden. */
+function notifyNewNoteMentions(previousRecords, newRecords, kind){
+  const u = LachboxOS.utils, auth = LachboxOS.auth;
+  if (!cache.loaded || !u || !auth || !auth.displayName) return;
+  const myName = auth.displayName();
+  if (!myName) return;
+  newRecords.forEach(record => {
+    if (!u.textMentionsName(record.notes, myName)) return;
+    const before = previousRecords.find(r => r.id === record.id);
+    if (before && u.textMentionsName(before.notes, myName)) return; // al eerder gezien, geen nieuwe tag
+    const label = kind === "lead"
+      ? "lead " + (customerDisplayName(getCustomerById(record.customerId)) || "onbekende klant")
+      : "klant " + (customerDisplayName(record) || "onbekend");
+    u.showToast(`Je bent getagd in een notitie bij ${label}.`, "info");
+  });
+}
+
+async function refreshCustomers(){
+  const previous = cache.customers;
+  cache.customers = await storage().getCustomers();
+  notifyNewNoteMentions(previous, cache.customers, "customer");
+  emit("customers:changed", cache.customers);
+  return cache.customers;
+}
+async function refreshLeads(){
+  const previous = cache.leads;
+  cache.leads = await storage().getLeads();
+  notifyNewNoteMentions(previous, cache.leads, "lead");
+  emit("leads:changed", cache.leads);
+  return cache.leads;
+}
 async function refreshEvents(){ cache.events = await storage().getEvents(); emit("events:changed", cache.events); return cache.events; }
 async function refreshChecklists(){ cache.checklists = await storage().getChecklists(); emit("checklists:changed", cache.checklists); return cache.checklists; }
 async function refreshInvoices(){ cache.invoices = await storage().getInvoices(); emit("invoices:changed", cache.invoices); return cache.invoices; }
 async function refreshReviews(){ cache.reviews = await storage().getReviews(); emit("reviews:changed", cache.reviews); return cache.reviews; }
 async function refreshSettings(){ cache.settings = await storage().getSettings(); emit("settings:changed", cache.settings); return cache.settings; }
 async function refreshCounter(){ cache.counter = await storage().getInvoiceCounter(); return cache.counter; }
+
 // Los van refreshAll() gehouden: chat wordt pas geladen zodra iemand
 // het Chat-scherm daadwerkelijk opent, niet al bij het opstarten van
-// de rest van de app (die data heeft niemand anders nodig).
-async function refreshMessages(){ cache.messages = await storage().getMessages(); emit("messages:changed", cache.messages); return cache.messages; }
+// de rest van de app (die data heeft niemand anders nodig) — maar
+// dankzij Realtime (zie initRealtime) komt een nieuw bericht ook
+// binnen terwijl je op een ANDERE pagina zit, en dat mag dan best een
+// toast geven als het jou tagt.
+let messagesLoadedOnce = false;
+async function refreshMessages(){
+  const previous = cache.messages;
+  const alreadyLoadedBefore = messagesLoadedOnce;
+  cache.messages = await storage().getMessages();
+  messagesLoadedOnce = true;
+  if (alreadyLoadedBefore){
+    const u = LachboxOS.utils, auth = LachboxOS.auth;
+    const myName = (u && auth && auth.displayName) ? auth.displayName() : "";
+    if (myName){
+      const previousIds = new Set(previous.map(m => m.id));
+      cache.messages.forEach(msg => {
+        if (previousIds.has(msg.id) || msg.senderName === myName) return;
+        if (u.textMentionsName(msg.body, myName)) u.showToast(`${msg.senderName} heeft je getagd in de chat.`, "info");
+      });
+    }
+  }
+  emit("messages:changed", cache.messages);
+  return cache.messages;
+}
 
 async function refreshAll(){
   await Promise.all([
