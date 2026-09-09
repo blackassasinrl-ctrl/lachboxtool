@@ -35,7 +35,7 @@ function firstName(customer){
 }
 function greeting(customer){
   const naam = firstName(customer);
-  return naam ? `Hoi ${naam},` : "Hoi,";
+  return naam ? `Beste ${naam},` : "Beste,";
 }
 function orPlaceholder(value, placeholder){
   return value ? value : `[${placeholder}]`;
@@ -45,8 +45,29 @@ function occasionOf(ctx){
 }
 function companyOf(settings){ return (settings && settings.company) || {}; }
 function emailSettingsOf(settings){ return (settings && settings.email) || {}; }
-function signOff(settings){
-  return emailSettingsOf(settings).signOff || "Groet,\nTeam Lachbox";
+
+/* ---------- Handtekening ----------
+   Sjablonen zijn platte tekst (mailto: en klembord ondersteunen geen
+   HTML/afbeeldingen), dus het logo kan hier niet in mee. De afsluiting
+   ("Met vriendelijke groet,") is vrij instelbaar bij Instellingen; hier
+   plakken we er automatisch de bedrijfsgegevens onder — naam, telefoon,
+   e-mail en adres — zodat elke mail dezelfde, complete ondertekening
+   heeft. Voor een handtekening mét logo: zie Instellingen > E-mailhand-
+   tekening (HTML om eenmalig in Outlook/Gmail te plakken). */
+function buildSignature(settings){
+  const company = companyOf(settings);
+  const emailSettings = emailSettingsOf(settings);
+  const closing = (emailSettings.signOff || "Met vriendelijke groet,").trim();
+  const signerName = emailSettings.senderName || company.name || "Lachbox";
+  const contactLines = [];
+  if (company.phone) contactLines.push("T " + company.phone);
+  if (company.email) contactLines.push("E " + company.email);
+  if (company.website) contactLines.push("W " + company.website);
+  const addressBits = [company.street, company.city].filter(Boolean).join(", ");
+  if (addressBits) contactLines.push(addressBits);
+  const parts = [closing, signerName];
+  if (contactLines.length) parts.push(contactLines.join("\n"));
+  return parts.join("\n\n");
 }
 
 /* ---------- Context opbouwen uit de cache (sel = {customerId,eventId,invoiceId,leadId}) ---------- */
@@ -76,11 +97,11 @@ function tplLeadReactie(ctx){
     subject: `Jouw aanvraag bij Lachbox${occasion ? " - " + occasion : ""}`,
     body: `${greeting(c)}
 
-Bedankt voor je aanvraag bij Lachbox! Leuk dat je een photobooth overweegt${occasion ? " voor je " + occasion.toLowerCase() : ""}${dateBit}.
+Hartelijk dank voor je aanvraag bij Lachbox. Fijn dat je een photobooth overweegt${occasion ? " voor je " + occasion.toLowerCase() : ""}${dateBit}.
 
-Kun je nog even laten weten wat de locatie is en welk pakket je in gedachten hebt (Mirrorbooth is bij elk pakket inbegrepen)? Dan stuur ik een passende offerte.
+Zou je ons willen laten weten wat de locatie is en welk pakket je voorkeur heeft (de Mirrorbooth is bij elk pakket inbegrepen)? Dan stellen we graag een passende offerte voor je op.
 
-${signOff(ctx.settings)}`
+${buildSignature(ctx.settings)}`
   };
 }
 
@@ -96,14 +117,14 @@ function tplOfferte(ctx){
     subject: `Offerte Lachbox voor ${occasion}`,
     body: `${greeting(c)}
 
-Hierbij de offerte voor ${occasion} op ${dateBit} in ${location}:
+Hierbij ontvang je graag de offerte voor ${occasion} op ${dateBit} in ${location}:
 
 Pakket: ${pakket}
 Prijs: ${prijs} (inclusief btw, opbouw en afbouw)
 
-Laat je weten of dit past? Dan leg ik de datum voor je vast.
+Laat je ons weten of dit aansluit bij je wensen? Dan leggen we de datum graag voor je vast.
 
-${signOff(ctx.settings)}`
+${buildSignature(ctx.settings)}`
   };
 }
 
@@ -114,11 +135,11 @@ function tplLeadOpvolgen(ctx){
     subject: "Nog interesse in Lachbox?",
     body: `${greeting(c)}
 
-Een tijdje terug spraken we over een photobooth via Lachbox${occasion ? " voor " + occasion.toLowerCase() : ""}. Ik hoor er nog niets meer over en wilde even checken of je hier nog mee bezig bent.
+Enige tijd geleden spraken we over een photobooth via Lachbox${occasion ? " voor " + occasion.toLowerCase() : ""}. Graag horen we of je hier nog interesse in hebt.
 
-Heb je nog vragen over de offerte, of moet er iets aangepast worden? Laat het gerust weten.
+Heb je nog vragen over de offerte, of moet er iets worden aangepast? Laat het ons gerust weten.
 
-${signOff(ctx.settings)}`
+${buildSignature(ctx.settings)}`
   };
 }
 
@@ -134,7 +155,7 @@ function tplBoekingBevestiging(ctx){
     subject: `Boeking bevestigd - ${naamBit}`,
     body: `${greeting(c)}
 
-Je boeking staat vast! Hierbij de gegevens op een rij:
+Je boeking is definitief bevestigd. Hieronder de gegevens op een rij:
 
 Datum: ${dateBit}
 Tijd: ${tijdBit}
@@ -142,9 +163,9 @@ Locatie: ${locatie}
 Pakket: ${pakket}
 Prijs: ${prijs}
 
-Zodra het event dichterbij komt stuur ik nog praktische info. Heb je in de tussentijd vragen, laat het gerust weten.
+Zodra het event dichterbij komt, ontvang je van ons nog de praktische informatie. Heb je in de tussentijd vragen? Neem gerust contact met ons op.
 
-${signOff(ctx.settings)}`
+${buildSignature(ctx.settings)}`
   };
 }
 
@@ -159,17 +180,17 @@ function tplPraktischeInfo(ctx){
     subject: `Praktische info voor ${ev && ev.date ? utils().formatDateDisplay(ev.date) : "je event"}`,
     body: `${greeting(c)}
 
-Nog even de praktische info voor het event op ${dateBit}:
+Hierbij graag de praktische informatie voor het event op ${dateBit}:
 
 Opbouw: ${tijdBit}
 Locatie: ${locatie}
 Contactpersoon op de dag zelf: ${senderName} (${senderEmail})
 
-Mocht er onderweg iets veranderen (parkeren, ingang, contactpersoon ter plekke), laat het gerust nog even weten.
+Mocht er onderweg nog iets wijzigen (parkeren, ingang, contactpersoon ter plekke), laat het ons dan gerust tijdig weten.
 
-Tot dan!
+We kijken ernaar uit!
 
-${signOff(ctx.settings)}`
+${buildSignature(ctx.settings)}`
   };
 }
 
@@ -184,11 +205,11 @@ function tplFactuurVersturen(ctx){
     subject: `Factuur ${nummer}`,
     body: `${greeting(c)}
 
-Hierbij factuur ${nummer} voor een bedrag van ${bedrag}.
+Hierbij ontvang je factuur ${nummer} voor een bedrag van ${bedrag}.
 
-Wil je het bedrag vóór ${vervalBit} overmaken naar ${iban} onder vermelding van ${kenmerk}?
+Wij verzoeken je vriendelijk dit bedrag vóór ${vervalBit} over te maken naar ${iban}, onder vermelding van ${kenmerk}.
 
-${signOff(ctx.settings)}`
+${buildSignature(ctx.settings)}`
   };
 }
 
@@ -207,11 +228,11 @@ function tplBetalingsherinnering(ctx){
     subject: `Herinnering: factuur ${nummer} nog openstaand`,
     body: `${greeting(c)}
 
-Even een vriendelijke herinnering: factuur ${nummer} van ${bedrag} staat nog open, ${overdueText}.
+Graag vragen we vriendelijk je aandacht voor het volgende: factuur ${nummer} van ${bedrag} staat nog open, ${overdueText}.
 
-Wil je het bedrag alsnog overmaken naar ${iban} onder vermelding van ${kenmerk}? Is de factuur per ongeluk blijven liggen, of loopt er iets anders? Laat het gerust weten.
+Zou je het bedrag alsnog willen overmaken naar ${iban}, onder vermelding van ${kenmerk}? Mocht de factuur onbedoeld zijn blijven liggen, of speelt er iets anders, laat het ons dan gerust weten.
 
-${signOff(ctx.settings)}`
+${buildSignature(ctx.settings)}`
   };
 }
 
@@ -223,11 +244,11 @@ function tplBedanktNaEvent(ctx){
     subject: "Bedankt namens Lachbox!",
     body: `${greeting(c)}
 
-Bedankt voor het vertrouwen! We hebben genoten van ${naamBit}${dateBit}.
+Hartelijk dank voor je vertrouwen in Lachbox! We hebben met veel plezier meegewerkt aan ${naamBit}${dateBit}.
 
-De foto's komen zo snel mogelijk naar je toe via een online galerij. Zodra die klaarstaat, stuur ik een linkje door.
+De foto's worden zo snel mogelijk beschikbaar gesteld via een online galerij. Zodra deze klaarstaat, ontvang je de link van ons.
 
-${signOff(ctx.settings)}`
+${buildSignature(ctx.settings)}`
   };
 }
 
@@ -240,13 +261,13 @@ function tplReviewVerzoek(ctx){
     subject: "Zou je een review willen achterlaten?",
     body: `${greeting(c)}
 
-Nogmaals bedankt voor ${naamBit}! Zou je ons enorm helpen door een korte review achter te laten?
+Nogmaals hartelijk dank voor ${naamBit}! Zou je ons enorm helpen door een korte review achter te laten?
 
 ${linkBit}
 
-Alvast bedankt voor de moeite!
+Alvast hartelijk dank voor de moeite.
 
-${signOff(ctx.settings)}`
+${buildSignature(ctx.settings)}`
   };
 }
 
@@ -259,11 +280,11 @@ function tplReviewHerinnering(ctx){
     subject: "Nog even een reminder - review Lachbox",
     body: `${greeting(c)}
 
-Een tijdje terug vroeg ik of je een review wilde achterlaten na ${naamBit}. Mocht dat er nog niet van gekomen zijn: het kost een minuutje en helpt ons enorm.
+Eerder vroegen we of je een review wilde achterlaten na ${naamBit}. Mocht dit er nog niet van zijn gekomen: het kost je slechts een minuutje en helpt ons enorm.
 
 ${linkBit}
 
-${signOff(ctx.settings)}`
+${buildSignature(ctx.settings)}`
   };
 }
 
@@ -275,7 +296,7 @@ function tplAlgemeen(ctx){
 
 
 
-${signOff(ctx.settings)}`
+${buildSignature(ctx.settings)}`
   };
 }
 
