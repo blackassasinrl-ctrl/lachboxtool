@@ -417,8 +417,35 @@ function renderEmailGeneratorPage(container){
   const relatedSlot = utils().make("div");
   contextSection.appendChild(relatedSlot);
 
+  // ---- Factuur-bijlage ----
+  // mailto: en "Kopiëren naar klembord" kunnen geen bestanden meebrengen
+  // — dat is een harde beperking van mailto zelf, geen keuze van deze
+  // app, en gaat pas echt weg met de Microsoft 365-koppeling (Fase 8c),
+  // waar de factuur automatisch als bijlage meegestuurd kan worden. Tot
+  // die tijd: één klik om de factuur-PDF vast te downloaden, zodat je
+  // 'm alleen nog handmatig hoeft aan te hangen in je mailprogramma.
+  function invoiceForContext(){
+    return ctxSel.invoiceId ? state().cache.invoices.find(i => i.id === ctxSel.invoiceId) : null;
+  }
+  async function downloadLinkedInvoicePdf(){
+    const invoice = invoiceForContext();
+    const customer = state().getCustomerById(ctxSel.customerId);
+    if (!invoice || !customer) return;
+    const event = invoice.eventId ? state().cache.events.find(e => e.id === invoice.eventId) : null;
+    const settings = state().cache.settings;
+    const company = Object.assign({}, settings.company, { defaultPaymentTermDays: settings.invoicing.defaultPaymentTermDays });
+    try{
+      await LachboxOS.invoices.downloadInvoicePdf(invoice, customer, event, company);
+    }catch(e){
+      utils().showToast("PDF genereren is niet gelukt: " + e.message, "error");
+    }
+  }
+  const invoiceAttachmentSlot = utils().make("div");
+  contextSection.appendChild(invoiceAttachmentSlot);
+
   function renderRelatedSelectors(){
     utils().clear(relatedSlot);
+    utils().clear(invoiceAttachmentSlot);
     if (!ctxSel.customerId) return;
     const events = state().eventsForCustomer(ctxSel.customerId).slice().sort((a,b) => (b.date||"").localeCompare(a.date||""));
     const invoices = state().invoicesForCustomer(ctxSel.customerId).slice().sort((a,b) => (b.issueDate||"").localeCompare(a.issueDate||""));
@@ -430,11 +457,24 @@ function renderEmailGeneratorPage(container){
 
     if (!invoices.some(i => i.id === ctxSel.invoiceId)) ctxSel.invoiceId = invoices.length === 1 ? invoices[0].id : null;
     const invoiceOptions = [["", "Geen factuur gekoppeld"]].concat(invoices.map(i => [i.id, (i.invoiceNumber || "Concept") + " · " + utils().formatCurrency(i.total || 0)]));
-    relatedSlot.appendChild(utils().selectField("Factuur", ctxSel.invoiceId || "", invoiceOptions, v => { ctxSel.invoiceId = v || null; refreshPreview(); }));
+    relatedSlot.appendChild(utils().selectField("Factuur", ctxSel.invoiceId || "", invoiceOptions, v => { ctxSel.invoiceId = v || null; refreshPreview(); renderInvoiceAttachment(); }));
 
     if (!leads.some(l => l.id === ctxSel.leadId)) ctxSel.leadId = leads.length === 1 ? leads[0].id : null;
     const leadOptions = [["", "Geen lead gekoppeld"]].concat(leads.map(l => [l.id, (l.eventType || "Lead") + " · " + l.status]));
     relatedSlot.appendChild(utils().selectField("Lead", ctxSel.leadId || "", leadOptions, v => { ctxSel.leadId = v || null; refreshPreview(); }));
+
+    renderInvoiceAttachment();
+  }
+
+  function renderInvoiceAttachment(){
+    utils().clear(invoiceAttachmentSlot);
+    const invoice = invoiceForContext();
+    if (!invoice) return;
+    invoiceAttachmentSlot.appendChild(utils().make("div", "field-hint", `Deze factuur wordt NIET automatisch bijgevoegd — mailto/kopiëren kan geen bestanden meesturen. Download 'm hier en hang 'm daarna zelf aan in je mailprogramma.`));
+    const dlBtn = utils().make("button", "btn secondary small", `Download factuur ${invoice.invoiceNumber || "(concept)"} (PDF)`);
+    dlBtn.type = "button";
+    dlBtn.addEventListener("click", downloadLinkedInvoicePdf);
+    invoiceAttachmentSlot.appendChild(dlBtn);
   }
 
   const picker = LachboxOS.crm.buildCustomerPicker({
