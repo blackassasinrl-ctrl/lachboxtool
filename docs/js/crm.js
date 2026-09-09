@@ -726,12 +726,23 @@ function renderCustomerDetailPage(container, params){
   const delBtn = utils().make("button", "btn danger small", "Klant verwijderen");
   delBtn.type = "button";
   delBtn.addEventListener("click", async () => {
-    const ok = await utils().askConfirm("Klant verwijderen?", "Deze klant wordt permanent verwijderd.");
+    const relatedBits = [
+      leads.length ? leads.length + " lead" + (leads.length === 1 ? "" : "s") : null,
+      events.length ? events.length + " event" + (events.length === 1 ? "" : "s") : null,
+      invoices.length ? invoices.length + " factu" + (invoices.length === 1 ? "ur" : "ren") : null
+    ].filter(Boolean);
+    const message = relatedBits.length
+      ? `Deze klant wordt permanent verwijderd, samen met ${relatedBits.join(", ")}. Dit kan niet ongedaan worden gemaakt.`
+      : "Deze klant wordt permanent verwijderd.";
+    const ok = await utils().askConfirm("Klant verwijderen?", message);
     if (!ok) return;
     try{
       await storage().deleteCustomer(customer.id);
-      await state().refreshCustomers();
-      utils().showToast("Klant verwijderd.", "success");
+      await Promise.all([
+        state().refreshCustomers(), state().refreshLeads(), state().refreshEvents(),
+        state().refreshInvoices(), state().refreshReviews(), state().refreshChecklists()
+      ]);
+      utils().showToast("Klant en alle gekoppelde gegevens verwijderd.", "success");
       nav().navigateTo("crm/customers");
     }catch(e){
       utils().showToast(e.message, "error");

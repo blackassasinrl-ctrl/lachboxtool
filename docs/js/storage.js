@@ -80,18 +80,23 @@ async function saveCustomer(customer){
   if (!customer.createdAt) customer.createdAt = LachboxOS.utils.todayISO();
   return upsertRow("customers", { id: customer.id, data: customer });
 }
-// Weigert te verwijderen zolang er nog leads/events/facturen naar deze klant verwijzen.
+// "Klant verwijderen" verwijdert nu ook alles wat aan deze klant hangt
+// (leads, events en facturen) i.p.v. te weigeren zodra er gekoppelde
+// records bestaan — een klant apart verwijderen terwijl zijn boekingen/
+// facturen blijven bestaan levert alleen maar verweesde records op die
+// nergens meer bij horen. Events verwijderen cascadeert in de database
+// automatisch hun checklist en review weg (zie schema.sql); leads
+// cascaden ook automatisch, maar worden hier voor de duidelijkheid ook
+// expliciet verwijderd.
 async function deleteCustomer(id){
   const [leads, events, invoices] = await Promise.all([
     selectByColumn("leads", "customer_id", id),
     selectByColumn("events", "customer_id", id),
     selectByColumn("invoices", "customer_id", id)
   ]);
-  if (leads.length || events.length || invoices.length){
-    const err = new Error("Klant kan niet worden verwijderd omdat er gekoppelde leads, evenementen of facturen bestaan.");
-    err.code = "HAS_RELATIONS";
-    throw err;
-  }
+  await Promise.all(events.map(e => deleteRow("events", e.id)));
+  await Promise.all(invoices.map(i => deleteRow("invoices", i.id)));
+  await Promise.all(leads.map(l => deleteRow("leads", l.id)));
   return deleteRow("customers", id);
 }
 
