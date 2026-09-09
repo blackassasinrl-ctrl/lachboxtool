@@ -517,11 +517,24 @@ function attachInlineAutocomplete(input, trigger, getItems, opts){
 
   function close(){ panel.hidden = true; items = []; range = null; }
 
+  // Houdt het paneel altijd binnen het zichtbare scherm — zonder dit zou
+  // het bij een veld dicht tegen de rand (of onderin, zoals de chat-
+  // invoer) deels of helemaal buiten beeld vallen, en moest je in-/
+  // uitzoomen om er nog bij te kunnen.
   function position(){
     const r = input.getBoundingClientRect();
-    panel.style.left = Math.round(r.left) + "px";
-    panel.style.top = Math.round(r.bottom + 4) + "px";
-    panel.style.minWidth = Math.round(Math.min(Math.max(r.width, 220), 320)) + "px";
+    const width = Math.round(Math.min(Math.max(r.width, 220), 320));
+    panel.style.minWidth = width + "px";
+    panel.style.maxWidth = "calc(100vw - 16px)";
+    let left = Math.round(r.left);
+    left = Math.min(left, window.innerWidth - width - 8);
+    left = Math.max(8, left);
+    panel.style.left = left + "px";
+
+    const panelHeight = panel.offsetHeight;
+    const spaceBelow = window.innerHeight - r.bottom;
+    const openAbove = spaceBelow < panelHeight + 12 && r.top > panelHeight + 12;
+    panel.style.top = Math.round(openAbove ? (r.top - panelHeight - 4) : (r.bottom + 4)) + "px";
   }
 
   function render(){
@@ -536,8 +549,12 @@ function attachInlineAutocomplete(input, trigger, getItems, opts){
         panel.appendChild(row);
       });
     }
-    position();
+    // Eerst zichtbaar maken en dán positioneren: position() moet de
+    // werkelijke hoogte kunnen meten (offsetHeight is 0 op een hidden
+    // element), en dat gebeurt nog vóór de volgende verfbeurt — geen
+    // zichtbare flits.
     panel.hidden = false;
+    position();
   }
 
   function pick(idx){
