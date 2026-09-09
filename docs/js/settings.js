@@ -107,8 +107,8 @@ async function loadDemoData(){
   const inDays = n => utils().formatDateInputValue(utils().addDays(today, n));
 
   const leads = [
-    { id: utils().uuid(), isDemo: true, customerId: dewit.id, source: "Website", status: "Offerte verstuurd", requestedPackage: "Basis", estimatedValue: 375, eventDate: inDays(45), eventType: "Verjaardag", eventLocation: "Arnhem", notes: "Wacht op reactie op offerte.", nextAction: "Bellen over offerte", nextActionDate: inDays(-2), temperature: "warm", createdAt: inDays(-10), lastContactAt: inDays(-9) },
-    { id: utils().uuid(), isDemo: true, customerId: jansen.id, source: "Instagram", status: "Gewonnen", requestedPackage: "Premium", estimatedValue: 425, eventDate: inDays(14), eventType: "Bruiloft", eventLocation: "Nijmegen", notes: "", nextAction: "", nextActionDate: "", temperature: "koud", createdAt: inDays(-30), lastContactAt: inDays(-20) }
+    { id: utils().uuid(), isDemo: true, customerId: dewit.id, source: "Website", status: "Offerte verstuurd", requestedPackages: ["mirrorbooth", "backdrop"], estimatedValue: 420, eventDate: inDays(45), eventType: "Verjaardag", eventLocation: "Arnhem", notes: "Wacht op reactie op offerte.", nextAction: "Bellen over offerte", nextActionDate: inDays(-2), temperature: "warm", createdAt: inDays(-10), lastContactAt: inDays(-9) },
+    { id: utils().uuid(), isDemo: true, customerId: jansen.id, source: "Instagram", status: "Gewonnen", requestedPackages: ["mirrorbooth", "onbeperkt", "props"], estimatedValue: 425, eventDate: inDays(14), eventType: "Bruiloft", eventLocation: "Nijmegen", notes: "", nextAction: "", nextActionDate: "", temperature: "koud", createdAt: inDays(-30), lastContactAt: inDays(-20) }
   ];
   for (const l of leads) await storage().saveLead(l);
 

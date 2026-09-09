@@ -107,7 +107,7 @@ function tplOfferte(ctx){
   const dateISO = (l && l.eventDate) || (ctx.event && ctx.event.date);
   const dateBit = orPlaceholder(dateISO ? utils().formatDateLong(dateISO) : null, "datum");
   const location = orPlaceholder(l && l.eventLocation, "locatie");
-  const pakket = orPlaceholder(l && l.requestedPackage, "pakket");
+  const pakket = orPlaceholder(l && LachboxOS.crm && LachboxOS.crm.leadPackageSummary(l, ctx.settings), "pakket");
   const prijs = l && l.estimatedValue ? utils().formatCurrency(l.estimatedValue) : "[bedrag]";
   return {
     subject: `Offerte Lachbox voor ${occasion}`,

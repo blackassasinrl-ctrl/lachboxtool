@@ -318,6 +318,14 @@ label{ display:block; font-size:10.5px; font-weight:600; letter-spacing:.02em; c
 .kanban-card-followup{ color:var(--muted); font-size:11px; margin-top:2px; }
 .cell-overdue{ color:var(--danger); font-weight:600; }
 
+/* ---------- Gewenst pakket (lead): combineerbare onderdelen ---------- */
+.package-picker{ display:flex; flex-direction:column; gap:2px; border:1px solid #d6d6d6; border-radius:var(--radius); padding:6px 8px; }
+.package-picker-item{ display:flex; align-items:center; gap:8px; padding:5px 2px; font-size:12.5px; cursor:pointer; border-radius:3px; }
+.package-picker-item:hover{ background:#fafaf9; }
+.package-picker-item input[type="checkbox"]{ width:auto; flex-shrink:0; }
+.package-picker-name{ flex:1; }
+.package-picker-price{ color:var(--muted); font-variant-numeric:tabular-nums; }
+
 /* ---------- Customer picker ---------- */
 .customer-picker{ position:relative; }
 .customer-picker-results{

@@ -50,6 +50,29 @@ function leadTemperatureBadgeClass(temp){
 }
 
 /* ============================================================
+   Gewenst pakket bij een lead: geen mutually-exclusive "pakket" meer,
+   maar een combinatie van losse onderdelen uit de catalogus (bijv.
+   Mirrorbooth + Backdrop) — dat is immers ook hoe de factuur zelf werkt
+   (losse regels, zie invoices.js). requestedPackages is een array van
+   component-keys uit settings.components; oudere leads hebben nog het
+   oude, enkelvoudige requestedPackage (string) — leadPackageKeys()
+   normaliseert dat, zodat bestaande data gewoon blijft werken.
+   ============================================================ */
+function leadPackageKeys(lead){
+  if (lead && Array.isArray(lead.requestedPackages)) return lead.requestedPackages;
+  return (lead && lead.requestedPackage) ? [lead.requestedPackage] : [];
+}
+function leadPackageNames(lead, settings){
+  return leadPackageKeys(lead).map(key => (settings.components[key] ? settings.components[key].name : key));
+}
+function leadPackageSummary(lead, settings){
+  return leadPackageNames(lead, settings).join(" + ");
+}
+function leadPackagePriceSum(lead, settings){
+  return leadPackageKeys(lead).reduce((sum, key) => sum + (settings.components[key] ? settings.components[key].price : 0), 0);
+}
+
+/* ============================================================
    Klant-picker — herbruikbaar overal waar een klant gekoppeld moet
    worden (leads nu, events/facturen later). Zoekt live in de cache,
    biedt "nieuwe klant aanmaken" aan zodra er geen match is (sectie 8:
@@ -152,14 +175,13 @@ function openLeadById(leadId){
 function openLeadModal(existingLead, onSaved){
   const isEdit = !!existingLead;
   const lead = existingLead ? Object.assign({}, existingLead) : {
-    id: null, customerId: null, source: "", status: "Nieuw", requestedPackage: "",
+    id: null, customerId: null, source: "", status: "Nieuw", requestedPackages: [],
     estimatedValue: 0, eventDate: "", eventType: "", eventLocation: "", notes: "", nextAction: "",
     nextActionDate: "", temperature: "",
     createdAt: utils().todayISO(), lastContactAt: utils().todayISO()
   };
   const settings = state().cache.settings;
-  const packageOptions = Object.keys(settings.components).map(key => [key, settings.components[key].name]);
-  packageOptions.push(["", "Maatwerk / anders"]);
+  let selectedPackages = leadPackageKeys(lead).slice();
 
   utils().openModal({
     title: isEdit ? "Lead bewerken" : "Nieuwe lead",
@@ -175,14 +197,37 @@ function openLeadModal(existingLead, onSaved){
       body.appendChild(utils().selectField("Temperatuur", lead.temperature, [["", "Nog niet beoordeeld"]].concat(LEAD_TEMPERATURES), v => { lead.temperature = v; }));
 
       const valueField = utils().textField("Geschatte waarde (€)", lead.estimatedValue, v => lead.estimatedValue = Number(v) || 0, { type: "number" });
-      const packageField = utils().selectField("Gewenst pakket", lead.requestedPackage, packageOptions, v => {
-        lead.requestedPackage = v;
-        if (settings.components[v]){
-          lead.estimatedValue = settings.components[v].price;
+
+      // Losse, combineerbare onderdelen (zoals de factuur zelf ook werkt)
+      // i.p.v. één keuze uit mutually-exclusive "pakketten" — Mirrorbooth
+      // + Backdrop moet allebei aan kunnen staan.
+      const packageWrap = utils().make("div", "field");
+      packageWrap.appendChild(utils().make("label", null, "Gewenst pakket"));
+      const packagePicker = utils().make("div", "package-picker");
+      Object.keys(settings.components).forEach(key => {
+        const comp = settings.components[key];
+        const item = document.createElement("label");
+        item.className = "package-picker-item";
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.checked = selectedPackages.includes(key);
+        checkbox.addEventListener("change", () => {
+          selectedPackages = checkbox.checked
+            ? selectedPackages.concat(key)
+            : selectedPackages.filter(k => k !== key);
+          lead.requestedPackages = selectedPackages;
+          lead.estimatedValue = leadPackagePriceSum(lead, settings);
           valueField._input.value = lead.estimatedValue;
-        }
+        });
+        item.appendChild(checkbox);
+        item.appendChild(utils().make("span", "package-picker-name", comp.name));
+        item.appendChild(utils().make("span", "package-picker-price", utils().formatCurrency(comp.price)));
+        packagePicker.appendChild(item);
       });
-      body.appendChild(utils().fieldRow(packageField, valueField));
+      packageWrap.appendChild(packagePicker);
+      packageWrap.appendChild(utils().make("div", "field-hint", "Meerdere onderdelen combineren mag — de geschatte waarde telt automatisch mee op, maar blijft ook handmatig aan te passen."));
+      body.appendChild(packageWrap);
+      body.appendChild(valueField);
 
       body.appendChild(utils().fieldRow(
         utils().textField("Eventdatum", lead.eventDate, v => lead.eventDate = v, { type: "date" }),
@@ -282,7 +327,6 @@ async function createEventFromLead(lead, onDone){
 
 async function actuallyCreateEvent(lead, customer, onDone){
   const settings = state().cache.settings;
-  const comp = settings.components[lead.requestedPackage];
   const event = {
     customerId: lead.customerId,
     leadId: lead.id,
@@ -292,8 +336,8 @@ async function actuallyCreateEvent(lead, customer, onDone){
     startTime: "", endTime: "",
     location: lead.eventLocation || "",
     address: "",
-    package: comp ? comp.name : (lead.requestedPackage || ""),
-    price: Number(lead.estimatedValue) || (comp ? comp.price : 0),
+    package: leadPackageSummary(lead, settings) || lead.requestedPackage || "",
+    price: Number(lead.estimatedValue) || leadPackagePriceSum(lead, settings),
     extras: [], costs: [], staff: "", notes: "",
     checklistId: null, invoiceId: null,
     status: "Gepland"
@@ -405,7 +449,6 @@ function buildLeadsTable(leads, onChanged){
   leads.slice().sort((a,b) => (b.createdAt||"").localeCompare(a.createdAt||"")).forEach(lead => {
     const customer = state().getCustomerById(lead.customerId);
     const settings = state().cache.settings;
-    const comp = settings.components[lead.requestedPackage];
     const tr = document.createElement("tr");
 
     tr.appendChild(utils().make("td", null, state().customerDisplayName(customer) || "—"));
@@ -422,7 +465,7 @@ function buildLeadsTable(leads, onChanged){
     tr.appendChild(utils().make("td", "cell-muted", lead.eventDate ? utils().formatDateDisplay(lead.eventDate) : "—"));
     tr.appendChild(utils().make("td", "cell-muted", lead.eventType || "—"));
     tr.appendChild(utils().make("td", "cell-muted", lead.eventLocation || "—"));
-    tr.appendChild(utils().make("td", null, comp ? comp.name : (lead.requestedPackage || "—")));
+    tr.appendChild(utils().make("td", null, leadPackageSummary(lead, settings) || lead.requestedPackage || "—"));
     tr.appendChild(utils().make("td", "cell-num", utils().formatCurrency(lead.estimatedValue || 0)));
     tr.appendChild(utils().make("td", "cell-muted", lead.lastContactAt ? utils().formatDateDisplay(lead.lastContactAt) : "—"));
 
@@ -813,6 +856,6 @@ nav().registerRoute({ path: "crm/customers", label: "Klanten", icon: "▤", grou
 // :id-route: geen sidebar-item (navigation.js sluit :param-routes uit van de sidebar).
 nav().registerRoute({ path: "crm/customers/:id", render: (c, params) => renderCustomerDetailPage(c, params) });
 
-LachboxOS.crm = { openLeadModal, openLeadById, openCustomerQuickCreateModal, buildCustomerPicker };
+LachboxOS.crm = { openLeadModal, openLeadById, openCustomerQuickCreateModal, buildCustomerPicker, leadPackageSummary };
 
 })();
