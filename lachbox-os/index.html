@@ -8,7 +8,20 @@
 </head>
 <body>
 
-<div class="app-shell">
+<div class="login-view no-print" id="loginView" hidden>
+  <div class="login-card">
+    <img id="loginLogo" class="login-logo" alt="Lachbox">
+    <h1>Lachbox OS</h1>
+    <p class="login-sub">Log in met je @lachbox.nl e-mailadres. Je krijgt een inloglink toegestuurd, geen wachtwoord nodig.</p>
+    <form id="loginForm" class="login-form">
+      <input type="email" id="loginEmail" placeholder="naam@lachbox.nl" autocomplete="email" required>
+      <button type="submit" class="btn primary" id="loginSubmitBtn">Stuur inloglink</button>
+    </form>
+    <div class="login-message" id="loginMessage"></div>
+  </div>
+</div>
+
+<div class="app-shell" id="appShell" hidden>
   <aside class="sidebar no-print" id="sidebar">
     <div class="sidebar-brand">
       <img id="sidebarLogo" alt="Lachbox">
@@ -16,6 +29,7 @@
     </div>
     <div id="sidebarSearchWrap"></div>
     <nav class="sidebar-nav" id="sidebarNav"></nav>
+    <div class="sidebar-account" id="sidebarAccount"></div>
   </aside>
 
   <div class="app-main">
@@ -44,9 +58,13 @@
      bestand rechtstreeks vanaf schijf wordt geopend (file://), niet alleen
      wanneer het gehost wordt. Volgorde is belangrijk: elk bestand hangt zijn
      functies aan het gedeelde LachboxOS-namespace-object. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/supabase-client.js"></script>
 <script src="js/logo-data.js"></script>
 <script src="js/utils.js"></script>
 <script src="js/storage.js"></script>
+<script src="js/auth.js"></script>
 <script src="js/state.js"></script>
 <script src="js/navigation.js"></script>
 <script src="js/dashboard.js"></script>

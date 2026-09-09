@@ -1,209 +1,178 @@
 /* ============================================================
-   LACHBOX OS — STORAGE
-   Enige plek die IndexedDB aanraakt. Een latere vervanging door een
-   API/backend hoeft alleen dit bestand te raken (zie architectuurplan):
-   elke functie hieronder is async en retourneert gewone JS-objecten/
-   arrays, ongeacht waar de data vandaan komt.
+   LACHBOX OS — STORAGE (cloud-variant, Milestone 8a)
+   Enige plek die de database aanraakt. Zelfde functienamen en
+   signatures als voorheen (elke functie is async en retourneert kale
+   JS-objecten/arrays) — alleen de implementatie is veranderd van
+   lokale IndexedDB naar een gedeelde Supabase-database, precies zoals
+   vanaf het begin bedoeld (zie architectuurplan). Geen enkele andere
+   module hoeft hierdoor aangepast te worden.
 
-   Objectstores: customers, leads, events, checklists, invoices,
-   reviews, settings (1 record, id "main"), invoiceCounter (1 record,
-   id "main").
+   Tabellen: customers, leads, events, checklists, invoices, reviews,
+   settings (1 rij, id "main"), invoice_counter (1 rij, id "main") —
+   zie supabase/schema.sql. Elke tabel heeft de kolommen waar hier op
+   gefilterd wordt als losse kolom, plus een `data jsonb`-kolom met
+   de rest van het record (ongewijzigde vrije structuur: factuurregels,
+   extra's, kosten, checklist-items).
    ============================================================ */
 (function(){
 "use strict";
 
 window.LachboxOS = window.LachboxOS || {};
-const DB_NAME = "lachbox_os";
-const DB_VERSION = 1;
 
-let dbPromise = null;
-
-function openDb(){
-  if (dbPromise) return dbPromise;
-  dbPromise = new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = (ev) => {
-      const db = ev.target.result;
-
-      if (!db.objectStoreNames.contains("customers")){
-        db.createObjectStore("customers", { keyPath: "id" });
-      }
-      if (!db.objectStoreNames.contains("leads")){
-        const s = db.createObjectStore("leads", { keyPath: "id" });
-        s.createIndex("status", "status");
-        s.createIndex("customerId", "customerId");
-      }
-      if (!db.objectStoreNames.contains("events")){
-        const s = db.createObjectStore("events", { keyPath: "id" });
-        s.createIndex("date", "date");
-        s.createIndex("customerId", "customerId");
-        s.createIndex("status", "status");
-      }
-      if (!db.objectStoreNames.contains("checklists")){
-        const s = db.createObjectStore("checklists", { keyPath: "id" });
-        s.createIndex("eventId", "eventId");
-      }
-      if (!db.objectStoreNames.contains("invoices")){
-        const s = db.createObjectStore("invoices", { keyPath: "id" });
-        s.createIndex("customerId", "customerId");
-        s.createIndex("eventId", "eventId");
-        s.createIndex("paymentStatus", "paymentStatus");
-        s.createIndex("issueDate", "issueDate");
-      }
-      if (!db.objectStoreNames.contains("reviews")){
-        const s = db.createObjectStore("reviews", { keyPath: "id" });
-        s.createIndex("eventId", "eventId");
-        s.createIndex("status", "status");
-      }
-      if (!db.objectStoreNames.contains("settings")){
-        db.createObjectStore("settings", { keyPath: "id" });
-      }
-      if (!db.objectStoreNames.contains("invoiceCounter")){
-        db.createObjectStore("invoiceCounter", { keyPath: "id" });
-      }
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-  return dbPromise;
+function sb(){
+  if (!LachboxOS.supabaseClient){
+    throw new Error("Geen verbinding met Supabase — controleer js/supabase-config.js.");
+  }
+  return LachboxOS.supabaseClient;
 }
 
-/* ---------- Generieke CRUD op basis van store-naam ---------- */
-function withStore(storeName, mode, fn){
-  return openDb().then(db => new Promise((resolve, reject) => {
-    const tx = db.transaction(storeName, mode);
-    const store = tx.objectStore(storeName);
-    let result;
-    try{
-      result = fn(store);
-    }catch(e){ reject(e); return; }
-    tx.oncomplete = () => resolve(result);
-    tx.onerror = () => reject(tx.error);
-    tx.onabort = () => reject(tx.error);
-  }));
+/* ---------- Rij <-> record ----------
+   Een "record" is precies wat de rest van de app altijd al kreeg: het
+   vrije JS-object met een `id`. De losse kolommen bestaan alleen voor
+   filteren/verwijzingen in de database, niet voor de UI. */
+function rowToRecord(row){
+  if (!row) return null;
+  return Object.assign({}, row.data, { id: row.id });
+}
+function rowsToRecords(rows){
+  return (rows || []).map(rowToRecord);
 }
 
-function reqToPromise(req){
-  return new Promise((resolve, reject) => {
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
+async function selectAll(table){
+  const { data, error } = await sb().from(table).select("*");
+  if (error) throw error;
+  return rowsToRecords(data);
 }
-
-async function getAll(storeName){
-  const db = await openDb();
-  return reqToPromise(db.transaction(storeName, "readonly").objectStore(storeName).getAll());
+async function selectById(table, id){
+  if (!id) return null;
+  const { data, error } = await sb().from(table).select("*").eq("id", id).maybeSingle();
+  if (error) throw error;
+  return rowToRecord(data);
 }
-async function getById(storeName, id){
-  const db = await openDb();
-  return reqToPromise(db.transaction(storeName, "readonly").objectStore(storeName).get(id));
+async function selectByColumn(table, column, value){
+  const { data, error } = await sb().from(table).select("*").eq(column, value);
+  if (error) throw error;
+  return rowsToRecords(data);
 }
-async function getByIndex(storeName, indexName, value){
-  const db = await openDb();
-  return reqToPromise(db.transaction(storeName, "readonly").objectStore(storeName).index(indexName).getAll(value));
+async function upsertRow(table, row){
+  const { data, error } = await sb().from(table).upsert(row).select().single();
+  if (error) throw error;
+  return rowToRecord(data);
 }
-async function put(storeName, record){
-  return withStore(storeName, "readwrite", store => { store.put(record); return record; });
+async function deleteRow(table, id){
+  const { error } = await sb().from(table).delete().eq("id", id);
+  if (error) throw error;
+  return true;
 }
-async function remove(storeName, id){
-  return withStore(storeName, "readwrite", store => { store.delete(id); return true; });
-}
-async function clearStore(storeName){
-  return withStore(storeName, "readwrite", store => { store.clear(); return true; });
+async function clearTable(table){
+  // Geen enkele rij heeft dit id — verwijdert dus alles. Alleen gebruikt
+  // door back-up/restore (importAllData), nooit door de UI direct.
+  const { error } = await sb().from(table).delete().neq("id", "00000000-0000-0000-0000-000000000000");
+  if (error) throw error;
+  return true;
 }
 
 /* ---------- Customers ---------- */
-async function getCustomers(){ return getAll("customers"); }
-async function getCustomer(id){ return getById("customers", id); }
+async function getCustomers(){ return selectAll("customers"); }
+async function getCustomer(id){ return selectById("customers", id); }
 async function saveCustomer(customer){
   if (!customer.id) customer.id = LachboxOS.utils.uuid();
   if (!customer.createdAt) customer.createdAt = LachboxOS.utils.todayISO();
-  await put("customers", customer);
-  return customer;
+  return upsertRow("customers", { id: customer.id, data: customer });
 }
 // Weigert te verwijderen zolang er nog leads/events/facturen naar deze klant verwijzen.
 async function deleteCustomer(id){
   const [leads, events, invoices] = await Promise.all([
-    getByIndex("leads", "customerId", id),
-    getByIndex("events", "customerId", id),
-    getByIndex("invoices", "customerId", id)
+    selectByColumn("leads", "customer_id", id),
+    selectByColumn("events", "customer_id", id),
+    selectByColumn("invoices", "customer_id", id)
   ]);
   if (leads.length || events.length || invoices.length){
     const err = new Error("Klant kan niet worden verwijderd omdat er gekoppelde leads, evenementen of facturen bestaan.");
     err.code = "HAS_RELATIONS";
     throw err;
   }
-  return remove("customers", id);
+  return deleteRow("customers", id);
 }
 
 /* ---------- Leads ---------- */
-async function getLeads(){ return getAll("leads"); }
-async function getLead(id){ return getById("leads", id); }
-async function getLeadsByCustomer(customerId){ return getByIndex("leads", "customerId", customerId); }
+async function getLeads(){ return selectAll("leads"); }
+async function getLead(id){ return selectById("leads", id); }
+async function getLeadsByCustomer(customerId){ return selectByColumn("leads", "customer_id", customerId); }
 async function saveLead(lead){
   if (!lead.id) lead.id = LachboxOS.utils.uuid();
   if (!lead.createdAt) lead.createdAt = LachboxOS.utils.todayISO();
   if (!lead.status) lead.status = "Nieuw";
-  await put("leads", lead);
-  return lead;
+  return upsertRow("leads", { id: lead.id, customer_id: lead.customerId || null, status: lead.status, data: lead });
 }
-async function deleteLead(id){ return remove("leads", id); }
+async function deleteLead(id){ return deleteRow("leads", id); }
 
 /* ---------- Events ---------- */
-async function getEvents(){ return getAll("events"); }
-async function getEvent(id){ return getById("events", id); }
-async function getEventsByCustomer(customerId){ return getByIndex("events", "customerId", customerId); }
+async function getEvents(){ return selectAll("events"); }
+async function getEvent(id){ return selectById("events", id); }
+async function getEventsByCustomer(customerId){ return selectByColumn("events", "customer_id", customerId); }
 async function saveEvent(event){
   if (!event.id) event.id = LachboxOS.utils.uuid();
   if (!event.status) event.status = "Gepland";
-  await put("events", event);
-  return event;
+  return upsertRow("events", {
+    id: event.id,
+    customer_id: event.customerId || null,
+    lead_id: event.leadId || null,
+    status: event.status,
+    event_date: event.date || null,
+    data: event
+  });
 }
-async function deleteEvent(id){ return remove("events", id); }
+async function deleteEvent(id){ return deleteRow("events", id); }
 
 /* ---------- Checklists ---------- */
-async function getChecklists(){ return getAll("checklists"); }
-async function getChecklist(id){ return getById("checklists", id); }
+async function getChecklists(){ return selectAll("checklists"); }
+async function getChecklist(id){ return selectById("checklists", id); }
 async function getChecklistByEvent(eventId){
-  const rows = await getByIndex("checklists", "eventId", eventId);
+  const rows = await selectByColumn("checklists", "event_id", eventId);
   return rows[0] || null;
 }
 async function saveChecklist(checklist){
   if (!checklist.id) checklist.id = LachboxOS.utils.uuid();
-  await put("checklists", checklist);
-  return checklist;
+  return upsertRow("checklists", { id: checklist.id, event_id: checklist.eventId || null, data: checklist });
 }
-async function deleteChecklist(id){ return remove("checklists", id); }
+async function deleteChecklist(id){ return deleteRow("checklists", id); }
 
 /* ---------- Invoices ---------- */
-async function getInvoices(){ return getAll("invoices"); }
-async function getInvoice(id){ return getById("invoices", id); }
-async function getInvoicesByCustomer(customerId){ return getByIndex("invoices", "customerId", customerId); }
-async function getInvoicesByEvent(eventId){ return getByIndex("invoices", "eventId", eventId); }
+async function getInvoices(){ return selectAll("invoices"); }
+async function getInvoice(id){ return selectById("invoices", id); }
+async function getInvoicesByCustomer(customerId){ return selectByColumn("invoices", "customer_id", customerId); }
+async function getInvoicesByEvent(eventId){ return selectByColumn("invoices", "event_id", eventId); }
 async function saveInvoice(invoice){
   if (!invoice.id) invoice.id = LachboxOS.utils.uuid();
   if (!invoice.paymentStatus) invoice.paymentStatus = "concept";
-  await put("invoices", invoice);
-  return invoice;
+  return upsertRow("invoices", {
+    id: invoice.id,
+    customer_id: invoice.customerId || null,
+    event_id: invoice.eventId || null,
+    invoice_number: invoice.invoiceNumber || null,
+    payment_status: invoice.paymentStatus,
+    issue_date: invoice.issueDate || null,
+    data: invoice
+  });
 }
-async function deleteInvoice(id){ return remove("invoices", id); }
+async function deleteInvoice(id){ return deleteRow("invoices", id); }
 
 /* ---------- Reviews ---------- */
-async function getReviews(){ return getAll("reviews"); }
-async function getReview(id){ return getById("reviews", id); }
+async function getReviews(){ return selectAll("reviews"); }
+async function getReview(id){ return selectById("reviews", id); }
 async function getReviewByEvent(eventId){
-  const rows = await getByIndex("reviews", "eventId", eventId);
+  const rows = await selectByColumn("reviews", "event_id", eventId);
   return rows[0] || null;
 }
 async function saveReview(review){
   if (!review.id) review.id = LachboxOS.utils.uuid();
   if (!review.status) review.status = "niet_gevraagd";
-  await put("reviews", review);
-  return review;
+  return upsertRow("reviews", { id: review.id, customer_id: review.customerId || null, event_id: review.eventId || null, status: review.status, data: review });
 }
-async function deleteReview(id){ return remove("reviews", id); }
+async function deleteReview(id){ return deleteRow("reviews", id); }
 
-/* ---------- Settings (één record, id "main") ---------- */
+/* ---------- Settings (één rij, id "main") ---------- */
 function defaultSettings(){
   return {
     id: "main",
@@ -237,70 +206,79 @@ function defaultSettings(){
   };
 }
 async function getSettings(){
-  const existing = await getById("settings", "main");
+  const existing = await selectById("settings", "main");
   if (existing) return existing;
   const defaults = defaultSettings();
-  await put("settings", defaults);
+  await upsertRow("settings", { id: "main", data: defaults });
   return defaults;
 }
 async function saveSettings(settings){
   settings.id = "main";
-  await put("settings", settings);
-  return settings;
+  return upsertRow("settings", { id: "main", data: settings });
 }
 
 /* ---------- Factuurteller (id "main") ---------- */
 async function getInvoiceCounter(){
-  const existing = await getById("invoiceCounter", "main");
-  if (existing) return existing;
+  const { data, error } = await sb().from("invoice_counter").select("*").eq("id", "main").maybeSingle();
+  if (error) throw error;
+  if (data) return { id: data.id, year: data.year, month: data.month, lastNumber: data.last_number };
   const now = new Date();
-  const fresh = { id: "main", year: now.getFullYear(), month: now.getMonth() + 1, lastNumber: 0 };
-  await put("invoiceCounter", fresh);
-  return fresh;
+  return saveInvoiceCounter({ id: "main", year: now.getFullYear(), month: now.getMonth() + 1, lastNumber: 0 });
 }
 async function saveInvoiceCounter(counter){
-  counter.id = "main";
-  await put("invoiceCounter", counter);
-  return counter;
+  const { data, error } = await sb().from("invoice_counter").upsert({
+    id: "main", year: counter.year, month: counter.month, last_number: counter.lastNumber
+  }).select().single();
+  if (error) throw error;
+  return { id: data.id, year: data.year, month: data.month, lastNumber: data.last_number };
 }
 
-/* ---------- Backup / restore (sectie 30) ---------- */
-const ALL_STORES = ["customers", "leads", "events", "checklists", "invoices", "reviews", "settings", "invoiceCounter"];
+/* ---------- Backup / restore ---------- */
+const ALL_STORES = ["customers", "leads", "events", "checklists", "invoices", "reviews", "settings"];
 
 async function exportAllData(){
   const data = {};
-  for (const name of ALL_STORES) data[name] = await getAll(name);
-  return { exportedAt: new Date().toISOString(), version: DB_VERSION, data };
+  for (const name of ALL_STORES) data[name] = await selectAll(name);
+  data.invoiceCounter = [await getInvoiceCounter()];
+  return { exportedAt: new Date().toISOString(), version: 1, data };
 }
 
-// Overschrijft ALLE stores met de inhoud van een eerdere backup. De aanroeper
-// moet zelf eerst om bevestiging vragen (askConfirm) — deze functie doet dat niet.
+// Overschrijft ALLE tabellen met de inhoud van een eerdere backup. De
+// aanroeper moet zelf eerst om bevestiging vragen (askConfirm) — deze
+// functie doet dat niet.
 async function importAllData(backup){
   if (!backup || typeof backup !== "object" || !backup.data){
     throw new Error("Ongeldig back-upbestand.");
   }
+  const saveFns = {
+    customers: saveCustomer, leads: saveLead, events: saveEvent, checklists: saveChecklist,
+    invoices: saveInvoice, reviews: saveReview, settings: saveSettings
+  };
   for (const name of ALL_STORES){
+    await clearTable(name);
     const rows = Array.isArray(backup.data[name]) ? backup.data[name] : [];
-    await clearStore(name);
-    for (const row of rows) await put(name, row);
+    for (const row of rows) await saveFns[name](row);
+  }
+  if (Array.isArray(backup.data.invoiceCounter) && backup.data.invoiceCounter[0]){
+    await saveInvoiceCounter(backup.data.invoiceCounter[0]);
   }
   return true;
 }
 
-/* ---------- Demodata (sectie 31) ---------- */
+/* ---------- Demodata ---------- */
 // Elke demo-record krijgt isDemo:true, zodat "demodata verwijderen" alleen
-// deze records raakt en nooit echte, door de gebruiker ingevoerde data.
+// deze records raakt en nooit echte, door het team ingevoerde data.
 async function clearDemoData(){
   for (const name of ["customers", "leads", "events", "checklists", "invoices", "reviews"]){
-    const rows = await getAll(name);
+    const rows = await selectAll(name);
     for (const row of rows){
-      if (row.isDemo) await remove(name, row.id);
+      if (row.isDemo) await deleteRow(name, row.id);
     }
   }
   return true;
 }
 async function hasDemoData(){
-  const customers = await getAll("customers");
+  const customers = await selectAll("customers");
   return customers.some(c => c.isDemo);
 }
 

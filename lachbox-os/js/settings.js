@@ -351,11 +351,19 @@ function renderDataSection(container, onChanged){
   const demoBtn = utils().make("button", "btn secondary", "Demodata laden");
   demoBtn.type = "button";
   demoBtn.addEventListener("click", async () => {
+    if (await storage().hasDemoData()){
+      utils().showToast("Demodata staat er al. Verwijder eerst de bestaande demodata voordat je opnieuw laadt.", "error");
+      return;
+    }
     const ok = await utils().askConfirm("Demodata laden?", "Dit voegt fictieve voorbeeldklanten, leads, events en facturen toe (duidelijk gemarkeerd, later in één keer te verwijderen).", { danger: false, okLabel: "Laden" });
     if (!ok) return;
-    await loadDemoData();
-    utils().showToast("Demodata geladen.", "success");
-    onChanged();
+    try{
+      await loadDemoData();
+      utils().showToast("Demodata geladen.", "success");
+      onChanged();
+    }catch(e){
+      utils().showToast("Demodata laden is mislukt: " + e.message, "error");
+    }
   });
   row.appendChild(demoBtn);
 

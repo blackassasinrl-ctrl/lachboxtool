@@ -54,6 +54,30 @@ async function refreshAll(){
   emit("all:changed", cache);
 }
 
+/* ---------- Realtime (Milestone 8a) ----------
+   Eén gedeelde workspace betekent dat een collega's wijziging ook in
+   jouw open scherm moet verschijnen zonder handmatig te herladen.
+   Supabase Realtime stuurt een event per tabel-wijziging; we hoeven
+   daarop alleen de bijbehorende refreshX() opnieuw aan te roepen —
+   die roept via emit() vanzelf alle geabonneerde schermen aan
+   (zelfde pub/sub die hierboven al voor lokale writes gebruikt wordt). */
+let realtimeChannel = null;
+function initRealtime(){
+  if (realtimeChannel || !LachboxOS.supabaseClient) return;
+  const refreshByTable = {
+    customers: refreshCustomers, leads: refreshLeads, events: refreshEvents,
+    checklists: refreshChecklists, invoices: refreshInvoices, reviews: refreshReviews,
+    settings: refreshSettings
+  };
+  realtimeChannel = LachboxOS.supabaseClient.channel("lachbox-os-changes");
+  Object.keys(refreshByTable).forEach(table => {
+    realtimeChannel.on("postgres_changes", { event: "*", schema: "public", table }, () => {
+      refreshByTable[table]().catch(e => console.error("Realtime-refresh mislukt voor " + table, e));
+    });
+  });
+  realtimeChannel.subscribe();
+}
+
 /* ---------- Afgeleide lookups (gebruiken de cache, geen extra DB-call) ---------- */
 function getCustomerById(id){
   return cache.customers.find(c => c.id === id) || null;
@@ -97,6 +121,7 @@ LachboxOS.state = {
   on, off, emit,
   refreshCustomers, refreshLeads, refreshEvents, refreshChecklists,
   refreshInvoices, refreshReviews, refreshSettings, refreshCounter, refreshAll,
+  initRealtime,
   getCustomerById, customerDisplayName,
   eventsForCustomer, invoicesForCustomer, leadsForCustomer, reviewsForCustomer,
   invoicesForEvent, reviewForEvent, checklistForEvent, leadForEvent,
