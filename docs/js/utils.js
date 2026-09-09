@@ -159,9 +159,21 @@ function clear(node){
   while (node.firstChild) node.removeChild(node.firstChild);
 }
 // Data-tables kunnen breder zijn dan het scherm (veel kolommen, smalle
-// mobielweergave): dit laat de tabel zelf horizontaal scrollen in plaats
-// van de hele pagina breder te maken dan de viewport.
+// mobielweergave). Op een telefoon is horizontaal scrollen door een tabel
+// alsnog onhandig, dus krijgt elke .data-table daar i.p.v. rijen een
+// gestapelde kaart per record (zie de @media-regel in styles.css) — elke
+// cel toont dan zijn kolomkop als klein label ervoor. Dat label wordt hier
+// automatisch uit de <thead> gehaald, zodat geen enkele tabelbouwer zelf
+// data-label-attributen hoeft te zetten.
 function tableScrollWrap(table){
+  if (table.classList.contains("data-table")){
+    const headers = Array.from(table.querySelectorAll("thead th")).map(th => th.textContent.trim());
+    table.querySelectorAll("tbody tr").forEach(tr => {
+      Array.from(tr.children).forEach((td, idx) => {
+        if (headers[idx]) td.setAttribute("data-label", headers[idx]);
+      });
+    });
+  }
   const wrap = make("div", "table-scroll");
   wrap.appendChild(table);
   return wrap;

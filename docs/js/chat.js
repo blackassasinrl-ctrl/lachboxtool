@@ -42,7 +42,7 @@ function renderChatPage(container){
 
   const textarea = document.createElement("textarea");
   textarea.rows = 2;
-  textarea.placeholder = "Typ een bericht... (Enter verstuurt, Shift+Enter een nieuwe regel, @ tagt een teamlid, * koppelt een klant/lead/event/factuur/review)";
+  textarea.placeholder = "Typ een bericht… @ tagt een teamlid, * koppelt een klant/lead/event/factuur";
   // Vóór de "Enter verstuurt"-listener hieronder aangehaakt, zodat een Enter
   // die een @tag/*koppeling kiest niet ook meteen het bericht verstuurt
   // (attachInlineAutocomplete roept stopImmediatePropagation aan).

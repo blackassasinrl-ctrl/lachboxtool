@@ -245,6 +245,9 @@ label{ display:block; font-size:10.5px; font-weight:600; letter-spacing:.02em; c
 }
 .section-heading{ font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:#888; font-weight:700; margin-bottom:14px; }
 .field-row{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; }
+@media (max-width: 640px){
+  .field-row{ grid-template-columns:1fr; }
+}
 .field{ margin-bottom:10px; }
 .field:last-child{ margin-bottom:0; }
 .field-row .field{ margin-bottom:0; }
@@ -297,6 +300,14 @@ label{ display:block; font-size:10.5px; font-weight:600; letter-spacing:.02em; c
 .modal-body .field-row{ margin-bottom:10px; }
 .modal-footer{ display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:18px; padding-top:14px; border-top:1px solid var(--line); }
 .modal-footer-actions{ display:flex; gap:8px; margin-left:auto; }
+@media (max-width: 480px){
+  .modal-overlay{ padding:10px; }
+  .modal{ padding:16px; }
+  .modal-large{ max-height:92vh; }
+  .modal-footer{ flex-wrap:wrap; }
+  .modal-footer-actions{ width:100%; }
+  .modal-footer-actions .btn{ flex:1; justify-content:center; }
+}
 
 /* ---------- Toolbar / tabellen (CRM) ---------- */
 .page-header{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:20px; flex-wrap:wrap; }
@@ -317,6 +328,30 @@ label{ display:block; font-size:10.5px; font-weight:600; letter-spacing:.02em; c
 .data-table tbody tr:hover{ background:#fafaf9; }
 .data-table .cell-muted{ color:var(--muted); font-size:12px; }
 .data-table .cell-num{ text-align:right; font-variant-numeric:tabular-nums; }
+
+/* Op een telefoon is zelfs horizontaal scrollen door een brede tabel
+   onhandig — elke rij wordt daar i.p.v. een tabelrij een kaart, met de
+   kolomkop als klein label voor elke waarde (data-label komt automatisch
+   uit de <thead>, zie utils().tableScrollWrap). */
+@media (max-width: 640px){
+  .data-table thead{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); }
+  .data-table, .data-table tbody, .data-table tr{ display:block; width:100%; }
+  .data-table{ border:none; background:transparent; }
+  .data-table tbody tr{
+    background:#fff; border:1px solid var(--line); border-radius:10px; padding:4px 12px; margin-bottom:8px;
+  }
+  .data-table td{
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    padding:8px 0; border-bottom:1px solid var(--line); text-align:right; white-space:normal;
+  }
+  .data-table tbody tr:last-child td{ border-bottom-color:var(--line); }
+  .data-table td:last-child{ border-bottom:none; }
+  .data-table td:empty{ display:none; }
+  .data-table td::before{
+    content:attr(data-label); font-size:10px; text-transform:uppercase; letter-spacing:.06em;
+    color:var(--faint); font-weight:700; text-align:left; flex-shrink:0;
+  }
+}
 
 /* ---------- Kanban (Leads) ---------- */
 .kanban-board{ display:grid; grid-template-columns: repeat(6, minmax(200px, 1fr)); gap:12px; overflow-x:auto; padding-bottom:8px; }
