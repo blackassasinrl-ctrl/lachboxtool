@@ -348,8 +348,15 @@ function buildEmailSignatureNode(settings){
     }
     infoCell.appendChild(line);
   }
-  contactLine("T", c.phone);
-  contactLine("E", c.email, c.email ? "mailto:" + c.email : null);
+  // Telefoon: het eigen nummer van de ingelogde gebruiker (zie auth.js),
+  // terugvallend op het gedeelde bedrijfsnummer uit Instellingen.
+  // E-mail: altijd het gedeelde contactadres, niet ieders eigen inlog-
+  // mailadres — dat hoort niet per se in een klantgerichte handtekening.
+  const personalPhone = LachboxOS.auth && LachboxOS.auth.personalPhone && LachboxOS.auth.personalPhone();
+  const e = (settings && settings.email) || {};
+  contactLine("T", personalPhone || c.phone);
+  const signatureEmail = e.signatureEmail || "contact@lachbox.nl";
+  contactLine("E", signatureEmail, "mailto:" + signatureEmail);
   contactLine("W", c.website, c.website ? "https://" + c.website.replace(/^https?:\/\//, "") : null);
 
   const addressBits = [c.street, c.city].filter(Boolean).join(", ");

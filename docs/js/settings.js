@@ -206,9 +206,10 @@ function renderCompanySection(container, settings, markDirty){
     textField("E-mailadres", c.email, v => { c.email = v; markDirty(); }, { type: "email" })
   ));
   section.appendChild(fieldRow(
-    textField("Telefoonnummer", c.phone, v => { c.phone = v; markDirty(); }, { placeholder: "bijv. 06-12345678" }),
+    textField("Telefoonnummer (terugval)", c.phone, v => { c.phone = v; markDirty(); }, { placeholder: "bijv. 06-12345678" }),
     textField("Website (optioneel)", c.website, v => { c.website = v; markDirty(); }, { placeholder: "bijv. www.lachbox.nl" })
   ));
+  section.appendChild(utils().make("div", "field-hint", "In de e-mailhandtekening toont dit nummer alleen wanneer een teamlid nog geen eigen nummer heeft ingesteld via 'Gegevens wijzigen'."));
 
   const logoField = utils().make("div", "field");
   logoField.appendChild(utils().make("label", null, "Logo"));
@@ -342,9 +343,11 @@ function renderReviewsAndEmailSection(container, settings, markDirty){
     textField("Google review-URL", settings.reviews.googleReviewUrl, v => { settings.reviews.googleReviewUrl = v; markDirty(); }),
     textField("Afzendernaam (terugval)", settings.email.senderName, v => { settings.email.senderName = v; markDirty(); })
   ));
-  section.appendChild(utils().make("div", "field-hint", "Elk teamlid tekent e-mails automatisch met zijn eigen naam (in te stellen via 'Naam wijzigen' onderaan de zijbalk). Deze afzendernaam wordt alleen gebruikt als terugval, bijvoorbeeld wanneer er niemand ingelogd is."));
+  section.appendChild(utils().make("div", "field-hint", "Elk teamlid tekent e-mails automatisch met zijn eigen naam en telefoonnummer (in te stellen via 'Gegevens wijzigen' onderaan de zijbalk). Deze afzendernaam wordt alleen gebruikt als terugval, bijvoorbeeld wanneer er niemand ingelogd is."));
   section.appendChild(textField("Standaard afsluiting e-mail", settings.email.signOff, v => { settings.email.signOff = v; markDirty(); }, { textarea: true, rows: 2, placeholder: "bijv. Met vriendelijke groet," }));
   section.appendChild(utils().make("div", "field-hint", "Onder deze afsluiting plakt elk e-mailsjabloon automatisch de naam van de inlogger. Gebruik hier alleen de afscheidszin (één regel) — een naam op een tweede regel wordt genegeerd."));
+  section.appendChild(textField("E-mailadres in handtekening", settings.email.signatureEmail || "contact@lachbox.nl", v => { settings.email.signatureEmail = v; markDirty(); }));
+  section.appendChild(utils().make("div", "field-hint", "Dit adres verschijnt in de volledige (HTML-)handtekening met logo — bewust een gedeeld contactadres, niet ieders eigen inlog-e-mailadres. Het telefoonnummer daar is wél per teamlid, via 'Gegevens wijzigen'."));
   container.appendChild(section);
 }
 

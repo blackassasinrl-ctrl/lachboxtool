@@ -20,14 +20,16 @@ function client(){
 }
 
 /* ---------- Wie is er ingelogd? ----------
-   Voor de "Groet, [naam]" in e-mailsjablonen (sectie e-mail): elk
-   teamlid ondertekent met zijn eigen naam, niet met een gedeelde
-   "Team Lachbox". De naam wordt opgeslagen op het Supabase-account zelf
-   (user_metadata.full_name) — dat is per persoon, werkt op elk device
-   waar diegene inlogt, en staat los van de gedeelde bedrijfsinstellingen
-   in Instellingen (die blijven voor iedereen hetzelfde: logo, telefoon,
-   adres, ...). Nog geen naam ingesteld? Dan leiden we een redelijke
-   default af uit het e-mailadres, zodat het nooit leeg is. */
+   Voor de "Groet, [naam]" + het persoonlijke telefoonnummer in de
+   e-mailhandtekening: elk teamlid tekent met zijn eigen naam en nummer,
+   niet met een gedeelde "Team Lachbox"/bedrijfsnummer. Beide worden
+   opgeslagen op het Supabase-account zelf (user_metadata.full_name /
+   .phone) — dat is per persoon, werkt op elk device waar diegene
+   inlogt, en staat los van de gedeelde bedrijfsinstellingen in
+   Instellingen (logo, adres, algemeen contact-e-mailadres, ...). Nog
+   niks ingesteld? Dan valt de naam terug op een gok op basis van het
+   e-mailadres, en het nummer op een bekend-teamlid-lijstje hieronder —
+   zodra iemand het zelf instelt, wint dat altijd. */
 let currentSession = null;
 
 function deriveNameFromEmail(email){
@@ -44,6 +46,23 @@ function displayName(){
   return meta.full_name || deriveNameFromEmail(currentSession.user.email);
 }
 
+/* Bekende doorkiesnummers, als startwaarde totdat iemand zijn eigen
+   nummer instelt via "Gegevens wijzigen" (dat wint dan altijd — zie
+   personalPhone() hieronder). Werkt op naam, dus dit klopt pas zodra
+   iemands naam bij "Naam wijzigen"/"Gegevens wijzigen" exact zo is
+   ingevuld. */
+const KNOWN_TEAM_PHONES = {
+  "Wout Gerrits": "+31 6 12433663",
+  "Mats Kuypers": "+31 6 15651101",
+  "Mats Coenen": "+31 6 27822258"
+};
+
+function personalPhone(){
+  if (!currentSession || !currentSession.user) return "";
+  const meta = currentSession.user.user_metadata || {};
+  return meta.phone || KNOWN_TEAM_PHONES[displayName()] || "";
+}
+
 function showView(id){
   ["loginView", "appShell"].forEach(viewId => {
     utils().el(viewId).hidden = (viewId !== id);
@@ -58,9 +77,9 @@ function renderAccount(session){
   wrap.appendChild(utils().make("div", "sidebar-account-name", displayName()));
   wrap.appendChild(utils().make("div", "sidebar-account-email", session.user.email));
   const actions = utils().make("div", "sidebar-account-actions");
-  const changeNameBtn = utils().make("button", "sidebar-account-logout", "Naam wijzigen");
+  const changeNameBtn = utils().make("button", "sidebar-account-logout", "Gegevens wijzigen");
   changeNameBtn.type = "button";
-  changeNameBtn.addEventListener("click", openChangeNameModal);
+  changeNameBtn.addEventListener("click", openChangeProfileModal);
   const changePwBtn = utils().make("button", "sidebar-account-logout", "Wachtwoord wijzigen");
   changePwBtn.type = "button";
   changePwBtn.addEventListener("click", openChangePasswordModal);
@@ -76,13 +95,15 @@ function renderAccount(session){
   wrap.appendChild(actions);
 }
 
-function openChangeNameModal(){
+function openChangeProfileModal(){
   utils().openModal({
-    title: "Jouw naam",
+    title: "Jouw gegevens",
     build(body, modal){
-      body.appendChild(utils().make("div", "field-hint", "Deze naam wordt gebruikt als ondertekening ('Groet, ...') in de e-mailsjablonen, en staat los van de gedeelde bedrijfsgegevens bij Instellingen."));
+      body.appendChild(utils().make("div", "field-hint", "Naam en telefoonnummer worden gebruikt in de ondertekening van e-mails ('Groet, ...' + je eigen nummer in de handtekening), en staan los van de gedeelde bedrijfsgegevens bij Instellingen."));
       const nameField = utils().textField("Naam", displayName(), () => {}, { placeholder: "bijv. Wout Gerrits" });
       body.appendChild(nameField);
+      const phoneField = utils().textField("Telefoonnummer", personalPhone(), () => {}, { placeholder: "bijv. +31 6 12345678" });
+      body.appendChild(phoneField);
       const msg = utils().make("div", "login-message");
       body.appendChild(msg);
       const footer = utils().make("div", "modal-footer");
@@ -93,15 +114,16 @@ function openChangeNameModal(){
       saveBtn.type = "button";
       saveBtn.addEventListener("click", async () => {
         const naam = nameField._input.value.trim();
+        const telefoon = phoneField._input.value.trim();
         if (!naam){ msg.className = "login-message error"; msg.textContent = "Vul een naam in."; return; }
         saveBtn.disabled = true;
-        const { data, error } = await client().auth.updateUser({ data: { full_name: naam } });
+        const { data, error } = await client().auth.updateUser({ data: { full_name: naam, phone: telefoon } });
         saveBtn.disabled = false;
         if (error){ msg.className = "login-message error"; msg.textContent = error.message; return; }
         if (data && data.user) currentSession = Object.assign({}, currentSession, { user: data.user });
         modal.close();
         renderAccount(currentSession);
-        utils().showToast("Naam opgeslagen.", "success");
+        utils().showToast("Gegevens opgeslagen.", "success");
       });
       actions.appendChild(cancelBtn); actions.appendChild(saveBtn);
       footer.appendChild(actions);
@@ -209,6 +231,6 @@ async function init(onAuthenticated){
   });
 }
 
-LachboxOS.auth = { init, displayName };
+LachboxOS.auth = { init, displayName, personalPhone };
 
 })();

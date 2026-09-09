@@ -186,7 +186,7 @@ function defaultSettings(){
       kvk: "98646222",
       vatNumber: "868583078B01",
       email: "info@lachbox.nl",
-      phone: "",
+      phone: "+31 6 27822258",
       website: "www.lachbox.nl",
       logoUrl: LachboxOS.LOGO_DATA_URL || ""
     },
@@ -204,7 +204,7 @@ function defaultSettings(){
       rodeloper:   { name: "Rode loper met afzetpaaltjes", subtext: "Hollywood-entree waar gasten mee binnenkomen", price: 40, vatRate: 21, priceMode: "incl" }
     },
     reviews: { googleReviewUrl: "" },
-    email: { senderName: "Team Lachbox", signOff: "Met vriendelijke groet," }
+    email: { senderName: "Team Lachbox", signOff: "Met vriendelijke groet,", signatureEmail: "contact@lachbox.nl" }
   };
 }
 async function getSettings(){
