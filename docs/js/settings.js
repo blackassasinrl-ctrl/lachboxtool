@@ -536,7 +536,7 @@ async function render(container){
   container.appendChild(page);
 }
 
-LachboxOS.navigation.registerRoute({ path: "settings", label: "Instellingen", icon: "⚙", group: null, render });
+LachboxOS.navigation.registerRoute({ path: "settings", label: "Instellingen", icon: "settings", group: null, render });
 LachboxOS.settingsModule = { legacyMigrationAvailable, runLegacyMigration };
 
 })();

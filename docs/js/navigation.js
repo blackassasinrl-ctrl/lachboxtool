@@ -113,8 +113,10 @@ function renderSidebar(activePath){
       link.href = "#/" + route.path;
       link.className = "sidebar-link" + (route.path === activePath ? " active" : "");
       if (route.icon){
-        const icon = utils().make("span", "sidebar-icon", route.icon);
+        const icon = utils().make("span", "sidebar-icon");
         icon.setAttribute("aria-hidden", "true");
+        const svg = LachboxOS.icons && LachboxOS.icons.get(route.icon);
+        if (svg) icon.innerHTML = svg; else icon.textContent = route.icon;
         link.appendChild(icon);
       }
       link.appendChild(document.createTextNode(route.label));

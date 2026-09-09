@@ -874,8 +874,8 @@ function renderCustomerDetailPage(container, params){
   }
 }
 
-nav().registerRoute({ path: "crm/leads", label: "Leads", icon: "◔", group: "CRM", render: (c) => renderLeadsPage(c) });
-nav().registerRoute({ path: "crm/customers", label: "Klanten", icon: "▤", group: "CRM", render: (c) => renderCustomersListPage(c) });
+nav().registerRoute({ path: "crm/leads", label: "Leads", icon: "leads", group: "CRM", render: (c) => renderLeadsPage(c) });
+nav().registerRoute({ path: "crm/customers", label: "Klanten", icon: "customers", group: "CRM", render: (c) => renderCustomersListPage(c) });
 // :id-route: geen sidebar-item (navigation.js sluit :param-routes uit van de sidebar).
 nav().registerRoute({ path: "crm/customers/:id", render: (c, params) => renderCustomerDetailPage(c, params) });
 

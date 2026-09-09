@@ -278,6 +278,6 @@ function render(container){
   return state().on("*", () => { utils().clear(container); renderContent(container); });
 }
 
-LachboxOS.navigation.registerRoute({ path: "dashboard", label: "Dashboard", icon: "◆", group: null, render });
+LachboxOS.navigation.registerRoute({ path: "dashboard", label: "Dashboard", icon: "dashboard", group: null, render });
 
 })();

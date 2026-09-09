@@ -519,7 +519,7 @@ function renderEmailGeneratorPage(container){
   refreshPreview();
 }
 
-nav().registerRoute({ path: "communicatie/email", label: "E-mail", icon: "✉", group: "Communicatie", render: (c) => renderEmailGeneratorPage(c) });
+nav().registerRoute({ path: "communicatie/email", label: "E-mail", icon: "email", group: "Communicatie", render: (c) => renderEmailGeneratorPage(c) });
 
 LachboxOS.email = { openEmailGenerator, TEMPLATES, buildContext };
 

@@ -1064,7 +1064,7 @@ function renderInvoicesListPage(container){
   renderTable();
 }
 
-nav().registerRoute({ path: "invoices", label: "Facturen", icon: "▥", group: "Sales", render: (c) => renderInvoicesListPage(c) });
+nav().registerRoute({ path: "invoices", label: "Facturen", icon: "invoices", group: "Sales", render: (c) => renderInvoicesListPage(c) });
 nav().registerRoute({ path: "invoices/:id", render: (c, params) => renderInvoiceEditorPage(c, params) });
 
 LachboxOS.invoices = {

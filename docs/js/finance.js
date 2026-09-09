@@ -212,7 +212,7 @@ function render(container){
   return state().on("*", () => { utils().clear(container); renderContent(container); });
 }
 
-nav().registerRoute({ path: "financieel", label: "Financieel", icon: "▲", group: null, render });
+nav().registerRoute({ path: "financieel", label: "Financieel", icon: "finance", group: null, render });
 
 LachboxOS.finance = { eventBookingTotal, eventCostsTotal, eventProfit, computeYearTotals, computeMonthlySeries };
 

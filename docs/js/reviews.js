@@ -200,7 +200,7 @@ function renderReviewsPage(container){
   renderTable();
 }
 
-nav().registerRoute({ path: "communicatie/reviews", label: "Reviews", icon: "★", group: "Communicatie", render: (c) => renderReviewsPage(c) });
+nav().registerRoute({ path: "communicatie/reviews", label: "Reviews", icon: "reviews", group: "Communicatie", render: (c) => renderReviewsPage(c) });
 
 LachboxOS.reviews = { REVIEW_STATUSES, reviewStatusLabel, reviewStatusBadgeClass, setReviewStatus, reviewOrStub, computePipelineStats };
 

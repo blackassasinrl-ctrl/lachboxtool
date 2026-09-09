@@ -550,7 +550,7 @@ function renderEventDetailPage(container, params){
   container.appendChild(page);
 }
 
-nav().registerRoute({ path: "events", label: "Events", icon: "▧", group: "Events", render: (c) => renderEventsListPage(c) });
+nav().registerRoute({ path: "events", label: "Events", icon: "events", group: "Events", render: (c) => renderEventsListPage(c) });
 nav().registerRoute({ path: "events/:id", render: (c, params) => renderEventDetailPage(c, params) });
 
 LachboxOS.events = { openEventCreateModal };

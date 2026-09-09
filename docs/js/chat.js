@@ -127,6 +127,6 @@ function renderChatPage(container){
   return state().on("messages:changed", renderMessages);
 }
 
-nav().registerRoute({ path: "communicatie/chat", label: "Chat", icon: "💬", group: "Communicatie", render: (c) => renderChatPage(c) });
+nav().registerRoute({ path: "communicatie/chat", label: "Chat", icon: "chat", group: "Communicatie", render: (c) => renderChatPage(c) });
 
 })();
