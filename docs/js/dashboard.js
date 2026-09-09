@@ -76,6 +76,21 @@ function computeActions(){
 
   c.leads.forEach(lead => {
     if (!OPEN_LEAD_STATUSES.includes(lead.status)) return;
+    // Concrete opvolgdatum heeft voorrang op de algemene "N dagen niet
+    // opgevolgd"-melding — die laatste is voor leads zonder geplande actie.
+    if (lead.nextActionDate){
+      const daysUntil = utils().daysBetween(today, lead.nextActionDate);
+      if (daysUntil != null && daysUntil <= 0){
+        const customer = state().getCustomerById(lead.customerId);
+        const naam = state().customerDisplayName(customer) || "onbekende klant";
+        const what = lead.nextAction ? `: ${lead.nextAction}` : "";
+        const text = daysUntil < 0
+          ? `Opvolgactie voor ${naam} is ${Math.abs(daysUntil)} dag${Math.abs(daysUntil)===1?"":"en"} verlopen${what}`
+          : `Opvolgactie voor ${naam} staat voor vandaag${what}`;
+        actions.push({ text, level: daysUntil < 0 ? "danger" : "warning", onClick: () => { if (LachboxOS.crm) LachboxOS.crm.openLeadById(lead.id); } });
+      }
+      return;
+    }
     const refDate = lead.lastContactAt || lead.createdAt;
     const days = utils().daysBetween(refDate, today);
     if (days != null && days >= 7){

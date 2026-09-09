@@ -34,6 +34,21 @@ function leadStatusBadgeClass(status){
   return "badge-info";
 }
 
+// Temperatuur is een handmatige inschatting door het team (geen berekende
+// score — er is geen historische data om een echte conversiekans op te
+// baseren, zie Milestone 9-plan). Leeg = nog niet beoordeeld.
+const LEAD_TEMPERATURES = [["warm", "Warm"], ["lauw", "Lauw"], ["koud", "Koud"]];
+function leadTemperatureLabel(temp){
+  const found = LEAD_TEMPERATURES.find(t => t[0] === temp);
+  return found ? found[1] : "";
+}
+function leadTemperatureBadgeClass(temp){
+  if (temp === "warm") return "badge-danger";
+  if (temp === "lauw") return "badge-warning";
+  if (temp === "koud") return "badge-info";
+  return "";
+}
+
 /* ============================================================
    Klant-picker — herbruikbaar overal waar een klant gekoppeld moet
    worden (leads nu, events/facturen later). Zoekt live in de cache,
@@ -139,6 +154,7 @@ function openLeadModal(existingLead, onSaved){
   const lead = existingLead ? Object.assign({}, existingLead) : {
     id: null, customerId: null, source: "", status: "Nieuw", requestedPackage: "",
     estimatedValue: 0, eventDate: "", eventType: "", eventLocation: "", notes: "", nextAction: "",
+    nextActionDate: "", temperature: "",
     createdAt: utils().todayISO(), lastContactAt: utils().todayISO()
   };
   const settings = state().cache.settings;
@@ -156,6 +172,7 @@ function openLeadModal(existingLead, onSaved){
         utils().selectField("Status", lead.status, LEAD_STATUSES.map(s => [s, s]), v => { lead.status = v; }),
         utils().textField("Bron", lead.source, v => lead.source = v, { placeholder: "bijv. Website, Instagram" })
       ));
+      body.appendChild(utils().selectField("Temperatuur", lead.temperature, [["", "Nog niet beoordeeld"]].concat(LEAD_TEMPERATURES), v => { lead.temperature = v; }));
 
       const valueField = utils().textField("Geschatte waarde (€)", lead.estimatedValue, v => lead.estimatedValue = Number(v) || 0, { type: "number" });
       const packageField = utils().selectField("Gewenst pakket", lead.requestedPackage, packageOptions, v => {
@@ -175,7 +192,10 @@ function openLeadModal(existingLead, onSaved){
         utils().textField("Eventlocatie", lead.eventLocation, v => lead.eventLocation = v),
         utils().textField("Laatste contact", lead.lastContactAt, v => lead.lastContactAt = v, { type: "date" })
       ));
-      body.appendChild(utils().textField("Volgende actie", lead.nextAction, v => lead.nextAction = v, { placeholder: "bijv. Bellen over offerte" }));
+      body.appendChild(utils().fieldRow(
+        utils().textField("Volgende actie", lead.nextAction, v => lead.nextAction = v, { placeholder: "bijv. Bellen over offerte" }),
+        utils().textField("Opvolgdatum", lead.nextActionDate, v => lead.nextActionDate = v, { type: "date" })
+      ));
       body.appendChild(utils().textField("Notities", lead.notes, v => lead.notes = v, { textarea: true, rows: 3 }));
 
       const footer = utils().make("div", "modal-footer");
@@ -304,6 +324,16 @@ function renderLeadsPage(container){
   searchInput.className = "search-input";
   searchInput.placeholder = "Zoek op klant, eventtype of locatie…";
   toolbar.appendChild(searchInput);
+
+  const tempFilter = document.createElement("select");
+  tempFilter.className = "toolbar-select";
+  [["", "Alle temperaturen"]].concat(LEAD_TEMPERATURES).forEach(([val, text]) => {
+    const opt = document.createElement("option");
+    opt.value = val; opt.textContent = text;
+    tempFilter.appendChild(opt);
+  });
+  toolbar.appendChild(tempFilter);
+
   toolbar.appendChild(utils().make("div", "spacer"));
 
   const viewToggle = utils().make("div", "view-toggle");
@@ -323,7 +353,9 @@ function renderLeadsPage(container){
 
   function matchingLeads(){
     const q = searchInput.value.trim().toLowerCase();
+    const tempValue = tempFilter.value;
     return state().cache.leads.filter(lead => {
+      if (tempValue && lead.temperature !== tempValue) return false;
       if (!q) return true;
       const customer = state().getCustomerById(lead.customerId);
       const hay = [state().customerDisplayName(customer), lead.eventType, lead.eventLocation, lead.source].filter(Boolean).join(" ").toLowerCase();
@@ -341,6 +373,7 @@ function renderLeadsPage(container){
   tableBtn.addEventListener("click", () => setView("table"));
   kanbanBtn.addEventListener("click", () => setView("kanban"));
   searchInput.addEventListener("input", renderContent);
+  tempFilter.addEventListener("change", renderContent);
 
   function renderContent(){
     utils().clear(content);
@@ -362,7 +395,7 @@ function buildLeadsTable(leads, onChanged){
   table.className = "data-table";
   const thead = document.createElement("thead");
   const headRow = document.createElement("tr");
-  ["Klant", "Status", "Eventdatum", "Type", "Locatie", "Pakket", "Waarde", "Laatste contact", ""].forEach(h => {
+  ["Klant", "Status", "Temperatuur", "Eventdatum", "Type", "Locatie", "Pakket", "Waarde", "Laatste contact", "Opvolgdatum", ""].forEach(h => {
     headRow.appendChild(utils().make("th", null, h));
   });
   thead.appendChild(headRow);
@@ -381,12 +414,26 @@ function buildLeadsTable(leads, onChanged){
     statusTd.appendChild(utils().make("span", "badge " + leadStatusBadgeClass(lead.status), lead.status));
     tr.appendChild(statusTd);
 
+    const tempTd = document.createElement("td");
+    if (lead.temperature) tempTd.appendChild(utils().make("span", "badge " + leadTemperatureBadgeClass(lead.temperature), leadTemperatureLabel(lead.temperature)));
+    else tempTd.appendChild(utils().make("span", "cell-muted", "—"));
+    tr.appendChild(tempTd);
+
     tr.appendChild(utils().make("td", "cell-muted", lead.eventDate ? utils().formatDateDisplay(lead.eventDate) : "—"));
     tr.appendChild(utils().make("td", "cell-muted", lead.eventType || "—"));
     tr.appendChild(utils().make("td", "cell-muted", lead.eventLocation || "—"));
     tr.appendChild(utils().make("td", null, comp ? comp.name : (lead.requestedPackage || "—")));
     tr.appendChild(utils().make("td", "cell-num", utils().formatCurrency(lead.estimatedValue || 0)));
     tr.appendChild(utils().make("td", "cell-muted", lead.lastContactAt ? utils().formatDateDisplay(lead.lastContactAt) : "—"));
+
+    const followUpTd = document.createElement("td");
+    if (lead.nextActionDate){
+      const overdue = lead.nextActionDate <= utils().todayISO();
+      followUpTd.appendChild(utils().make("span", overdue ? "cell-overdue" : "cell-muted", utils().formatDateDisplay(lead.nextActionDate)));
+    } else {
+      followUpTd.appendChild(utils().make("span", "cell-muted", "—"));
+    }
+    tr.appendChild(followUpTd);
 
     const actionTd = document.createElement("td");
     if (lead.status === "Gewonnen"){
@@ -423,9 +470,16 @@ function buildLeadsKanban(leads, onChanged){
       const customer = state().getCustomerById(lead.customerId);
       const card = utils().make("div", "kanban-card");
       card.draggable = true;
-      card.appendChild(utils().make("div", "kanban-card-name", state().customerDisplayName(customer) || "Naamloze lead"));
+      const nameRow = utils().make("div", "kanban-card-name-row");
+      nameRow.appendChild(utils().make("div", "kanban-card-name", state().customerDisplayName(customer) || "Naamloze lead"));
+      if (lead.temperature) nameRow.appendChild(utils().make("span", "badge " + leadTemperatureBadgeClass(lead.temperature), leadTemperatureLabel(lead.temperature)));
+      card.appendChild(nameRow);
       const metaBits = [lead.eventType, lead.eventDate ? utils().formatDateDisplay(lead.eventDate) : null].filter(Boolean).join(" · ");
       if (metaBits) card.appendChild(utils().make("div", "kanban-card-meta", metaBits));
+      if (lead.nextActionDate){
+        const overdue = lead.nextActionDate <= utils().todayISO();
+        card.appendChild(utils().make("div", overdue ? "kanban-card-followup cell-overdue" : "kanban-card-followup", "Opvolgen: " + utils().formatDateDisplay(lead.nextActionDate)));
+      }
       if (lead.estimatedValue) card.appendChild(utils().make("div", "kanban-card-value", utils().formatCurrency(lead.estimatedValue)));
 
       card.addEventListener("click", () => openLeadModal(lead, onChanged));
