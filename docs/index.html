@@ -12,7 +12,7 @@
   <div class="login-card">
     <img id="loginLogo" class="login-logo" alt="Lachbox">
     <h1>Lachbox OS</h1>
-    <p class="login-sub" id="loginSub">Log in met je @lachbox.nl e-mailadres en wachtwoord.</p>
+    <p class="login-sub">Log in met je @lachbox.nl e-mailadres en wachtwoord.</p>
 
     <form id="loginPasswordForm" class="login-form">
       <input type="email" id="loginEmail" placeholder="naam@lachbox.nl" autocomplete="email" required>
@@ -20,28 +20,7 @@
       <button type="submit" class="btn primary" id="loginSubmitBtn">Inloggen</button>
     </form>
 
-    <form id="loginLinkForm" class="login-form" hidden>
-      <input type="email" id="loginLinkEmail" placeholder="naam@lachbox.nl" autocomplete="email" required>
-      <button type="submit" class="btn primary" id="loginLinkSubmitBtn">Stuur inloglink</button>
-    </form>
-
     <div class="login-message" id="loginMessage"></div>
-    <button type="button" class="login-toggle-link" id="loginToggleModeBtn">Eerste keer, of wachtwoord vergeten? Log in met een link</button>
-  </div>
-</div>
-
-<div class="login-view no-print" id="setPasswordView" hidden>
-  <div class="login-card">
-    <img id="setPasswordLogo" class="login-logo" alt="Lachbox">
-    <h1>Stel je wachtwoord in</h1>
-    <p class="login-sub">Je bent ingelogd via een link. Kies nu een wachtwoord zodat je voortaan direct kan inloggen, vanaf elk apparaat.</p>
-    <form id="setPasswordForm" class="login-form">
-      <input type="password" id="newPassword" placeholder="Nieuw wachtwoord (minimaal 8 tekens)" autocomplete="new-password" minlength="8" required>
-      <input type="password" id="newPasswordConfirm" placeholder="Herhaal wachtwoord" autocomplete="new-password" minlength="8" required>
-      <button type="submit" class="btn primary" id="setPasswordSubmitBtn">Wachtwoord instellen</button>
-    </form>
-    <div class="login-message" id="setPasswordMessage"></div>
-    <button type="button" class="login-toggle-link" id="skipPasswordBtn">Later instellen</button>
   </div>
 </div>
 

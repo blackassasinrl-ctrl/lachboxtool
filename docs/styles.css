@@ -67,11 +67,6 @@ label{ display:block; font-size:10.5px; font-weight:600; letter-spacing:.02em; c
 .login-message{ font-size:12px; margin-top:14px; min-height:16px; line-height:1.5; }
 .login-message.success{ color:var(--success); }
 .login-message.error{ color:var(--danger); }
-.login-toggle-link{
-  display:block; width:100%; margin-top:16px; background:transparent; border:none;
-  color:var(--muted); font-size:11.5px; text-decoration:underline; cursor:pointer;
-}
-.login-toggle-link:hover{ color:#111; }
 
 /* ---------- App shell ---------- */
 .app-shell{ display:flex; min-height:100vh; }
