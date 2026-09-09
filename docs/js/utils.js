@@ -278,6 +278,104 @@ function selectField(label, value, options, onChange){
   return wrap;
 }
 
+/* ---------- E-mailhandtekening (met logo) ----------
+   Gedeeld door Instellingen (waar 'm je kopieert naar Outlook/Gmail) en
+   de e-mailgenerator (waar je 'm ziet als voorbeeld van wat er straks
+   automatisch onder je bericht komt te staan). Gebouwd met de DOM-API
+   i.p.v. string-HTML, dus geen handmatige escaping nodig. */
+function buildEmailSignatureNode(settings){
+  const c = (settings && settings.company) || {};
+  const e = (settings && settings.email) || {};
+  const wrap = document.createElement("table");
+  wrap.setAttribute("cellpadding", "0");
+  wrap.setAttribute("cellspacing", "0");
+  wrap.setAttribute("border", "0");
+  wrap.style.fontFamily = "Arial, Helvetica, sans-serif";
+  wrap.style.fontSize = "13px";
+  wrap.style.color = "#111111";
+
+  const row = wrap.insertRow();
+  const logoCell = row.insertCell();
+  logoCell.style.paddingRight = "16px";
+  logoCell.style.borderRight = "2px solid #111111";
+  logoCell.style.verticalAlign = "middle";
+  if (c.logoUrl){
+    const img = document.createElement("img");
+    img.src = c.logoUrl;
+    img.alt = c.name || "Lachbox";
+    img.style.height = "40px";
+    img.style.width = "auto";
+    img.style.display = "block";
+    logoCell.appendChild(img);
+  }
+
+  const infoCell = row.insertCell();
+  infoCell.style.paddingLeft = "16px";
+  infoCell.style.verticalAlign = "middle";
+
+  const nameLine = document.createElement("div");
+  nameLine.style.fontWeight = "700";
+  nameLine.style.fontSize = "14px";
+  nameLine.style.marginBottom = "6px";
+  nameLine.textContent = e.senderName || c.name || "Lachbox";
+  infoCell.appendChild(nameLine);
+
+  function contactLine(label, value, href){
+    if (!value) return;
+    const line = document.createElement("div");
+    line.style.lineHeight = "1.6";
+    line.appendChild(document.createTextNode(label + " "));
+    if (href){
+      const a = document.createElement("a");
+      a.href = href; a.textContent = value;
+      a.style.color = "#111111"; a.style.textDecoration = "none";
+      line.appendChild(a);
+    } else {
+      line.appendChild(document.createTextNode(value));
+    }
+    infoCell.appendChild(line);
+  }
+  contactLine("T", c.phone);
+  contactLine("E", c.email, c.email ? "mailto:" + c.email : null);
+  contactLine("W", c.website, c.website ? "https://" + c.website.replace(/^https?:\/\//, "") : null);
+
+  const addressBits = [c.street, c.city].filter(Boolean).join(", ");
+  if (addressBits){
+    const addrLine = document.createElement("div");
+    addrLine.style.color = "#555555";
+    addrLine.style.marginTop = "4px";
+    addrLine.textContent = addressBits;
+    infoCell.appendChild(addrLine);
+  }
+
+  return wrap;
+}
+
+async function copyNodeAsHtml(node){
+  const html = node.outerHTML;
+  const text = node.textContent.replace(/\n{2,}/g, "\n").trim();
+  try{
+    if (navigator.clipboard && window.ClipboardItem){
+      const item = new ClipboardItem({
+        "text/html": new Blob([html], { type: "text/html" }),
+        "text/plain": new Blob([text], { type: "text/plain" })
+      });
+      await navigator.clipboard.write([item]);
+      return true;
+    }
+  }catch(e){ /* val terug op selectie-kopieer hieronder */ }
+  try{
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+    const ok = document.execCommand("copy");
+    selection.removeAllRanges();
+    return ok;
+  }catch(e2){ return false; }
+}
+
 LachboxOS.utils = {
   uuid,
   roundMoney, formatCurrency,
@@ -288,7 +386,8 @@ LachboxOS.utils = {
   slugify,
   el, make, clear, tableScrollWrap,
   showToast, askConfirm, openModal,
-  fieldRow, textField, selectField
+  fieldRow, textField, selectField,
+  buildEmailSignatureNode, copyNodeAsHtml
 };
 
 })();

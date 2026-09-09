@@ -48,26 +48,18 @@ function emailSettingsOf(settings){ return (settings && settings.email) || {}; }
 
 /* ---------- Handtekening ----------
    Sjablonen zijn platte tekst (mailto: en klembord ondersteunen geen
-   HTML/afbeeldingen), dus het logo kan hier niet in mee. De afsluiting
-   ("Met vriendelijke groet,") is vrij instelbaar bij Instellingen; hier
-   plakken we er automatisch de bedrijfsgegevens onder — naam, telefoon,
-   e-mail en adres — zodat elke mail dezelfde, complete ondertekening
-   heeft. Voor een handtekening mét logo: zie Instellingen > E-mailhand-
-   tekening (HTML om eenmalig in Outlook/Gmail te plakken). */
+   HTML/afbeeldingen), dus hier komt alleen de afsluiting + naam onder
+   te staan — geen herhaling van telefoon/e-mail/adres, want die staan
+   al in de volledige (echte) handtekening met logo die hieronder op
+   deze pagina te zien is, en die je eenmalig instelt in Outlook/Gmail
+   (zie Instellingen > E-mailhandtekening) zodat hij er dan altijd
+   automatisch bij staat. */
 function buildSignature(settings){
   const company = companyOf(settings);
   const emailSettings = emailSettingsOf(settings);
   const closing = (emailSettings.signOff || "Met vriendelijke groet,").trim();
   const signerName = emailSettings.senderName || company.name || "Lachbox";
-  const contactLines = [];
-  if (company.phone) contactLines.push("T " + company.phone);
-  if (company.email) contactLines.push("E " + company.email);
-  if (company.website) contactLines.push("W " + company.website);
-  const addressBits = [company.street, company.city].filter(Boolean).join(", ");
-  if (addressBits) contactLines.push(addressBits);
-  const parts = [closing, signerName];
-  if (contactLines.length) parts.push(contactLines.join("\n"));
-  return parts.join("\n\n");
+  return `${closing}\n\n${signerName}`;
 }
 
 /* ---------- Context opbouwen uit de cache (sel = {customerId,eventId,invoiceId,leadId}) ---------- */
@@ -381,6 +373,20 @@ function renderEmailGeneratorPage(container){
   previewActions.appendChild(copyBtn); previewActions.appendChild(mailBtn);
   previewPanel.appendChild(previewActions);
   previewCol.appendChild(previewPanel);
+
+  // ---- Volledige handtekening (met logo) ----
+  // De tekst hierboven eindigt bewust alleen met de afsluiting + naam
+  // (geen herhaling van telefoon/e-mail/adres). Dit is hoe de complete
+  // handtekening eruitziet zodra je 'm instelt in Outlook of Gmail (zie
+  // Instellingen > E-mailhandtekening) — die verschijnt dan automatisch
+  // onder dit bericht, dus dit is puur ter voorbeeld/controle.
+  const signaturePanel = utils().make("div", "section-card");
+  signaturePanel.appendChild(utils().make("h2", "section-heading", "Volledige handtekening"));
+  signaturePanel.appendChild(utils().make("div", "field-hint", "Zo ziet je handtekening eruit zodra je 'm instelt in Outlook of Gmail (Instellingen > E-mailhandtekening) — die verschijnt dan automatisch onder dit bericht."));
+  const signatureBox = utils().make("div", "signature-preview");
+  signatureBox.appendChild(utils().buildEmailSignatureNode(state().cache.settings));
+  signaturePanel.appendChild(signatureBox);
+  previewCol.appendChild(signaturePanel);
 
   copyBtn.addEventListener("click", async () => {
     const text = manualSubject ? `${manualSubject}\n\n${manualBody}` : manualBody;

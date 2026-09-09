@@ -356,108 +356,6 @@ function renderReviewsAndEmailSection(container, settings, markDirty){
    eigen mailprogramma (Outlook/Gmail), inclusief logo. Daarna staat hij
    automatisch onder elke mail die je vanuit dat mailprogramma verstuurt.
    ============================================================ */
-function buildSignaturePreviewNode(settings){
-  const c = settings.company || {};
-  const e = settings.email || {};
-  const wrap = document.createElement("table");
-  wrap.setAttribute("cellpadding", "0");
-  wrap.setAttribute("cellspacing", "0");
-  wrap.setAttribute("border", "0");
-  wrap.style.fontFamily = "Arial, Helvetica, sans-serif";
-  wrap.style.fontSize = "13px";
-  wrap.style.color = "#111111";
-
-  const row = wrap.insertRow();
-  const logoCell = row.insertCell();
-  logoCell.style.paddingRight = "16px";
-  logoCell.style.borderRight = "2px solid #111111";
-  logoCell.style.verticalAlign = "middle";
-  if (c.logoUrl){
-    const img = document.createElement("img");
-    img.src = c.logoUrl;
-    img.alt = c.name || "Lachbox";
-    img.style.height = "40px";
-    img.style.width = "auto";
-    img.style.display = "block";
-    logoCell.appendChild(img);
-  }
-
-  const infoCell = row.insertCell();
-  infoCell.style.paddingLeft = "16px";
-  infoCell.style.verticalAlign = "middle";
-
-  const nameLine = document.createElement("div");
-  nameLine.style.fontWeight = "700";
-  nameLine.style.fontSize = "14px";
-  nameLine.textContent = e.senderName || c.name || "Lachbox";
-  infoCell.appendChild(nameLine);
-
-  if (c.name && c.name !== nameLine.textContent){
-    const companyLine = document.createElement("div");
-    companyLine.style.color = "#555555";
-    companyLine.style.marginBottom = "6px";
-    companyLine.textContent = c.name;
-    infoCell.appendChild(companyLine);
-  } else {
-    nameLine.style.marginBottom = "6px";
-  }
-
-  function contactLine(label, value, href){
-    if (!value) return;
-    const line = document.createElement("div");
-    line.style.lineHeight = "1.6";
-    line.appendChild(document.createTextNode(label + " "));
-    if (href){
-      const a = document.createElement("a");
-      a.href = href; a.textContent = value;
-      a.style.color = "#111111"; a.style.textDecoration = "none";
-      line.appendChild(a);
-    } else {
-      line.appendChild(document.createTextNode(value));
-    }
-    infoCell.appendChild(line);
-  }
-  contactLine("T", c.phone);
-  contactLine("E", c.email, c.email ? "mailto:" + c.email : null);
-  contactLine("W", c.website, c.website ? "https://" + c.website.replace(/^https?:\/\//, "") : null);
-
-  const addressBits = [c.street, c.city].filter(Boolean).join(", ");
-  if (addressBits){
-    const addrLine = document.createElement("div");
-    addrLine.style.color = "#555555";
-    addrLine.style.marginTop = "4px";
-    addrLine.textContent = addressBits;
-    infoCell.appendChild(addrLine);
-  }
-
-  return wrap;
-}
-
-async function copySignatureHtml(node){
-  const html = node.outerHTML;
-  const text = node.textContent.replace(/\n{2,}/g, "\n").trim();
-  try{
-    if (navigator.clipboard && window.ClipboardItem){
-      const item = new ClipboardItem({
-        "text/html": new Blob([html], { type: "text/html" }),
-        "text/plain": new Blob([text], { type: "text/plain" })
-      });
-      await navigator.clipboard.write([item]);
-      return true;
-    }
-  }catch(e){ /* val terug op selectie-kopieer hieronder */ }
-  try{
-    const range = document.createRange();
-    range.selectNodeContents(node);
-    const selection = window.getSelection();
-    selection.removeAllRanges();
-    selection.addRange(range);
-    const ok = document.execCommand("copy");
-    selection.removeAllRanges();
-    return ok;
-  }catch(e2){ return false; }
-}
-
 function renderEmailSignatureSection(container, settings){
   const section = utils().make("div", "section-card");
   section.appendChild(utils().make("h2", "section-heading", "E-mailhandtekening (met logo)"));
@@ -470,7 +368,7 @@ function renderEmailSignatureSection(container, settings){
 
   function refresh(){
     utils().clear(previewBox);
-    previewBox.appendChild(buildSignaturePreviewNode(settings));
+    previewBox.appendChild(utils().buildEmailSignatureNode(settings));
   }
   refresh();
 
@@ -478,7 +376,7 @@ function renderEmailSignatureSection(container, settings){
   copyBtn.type = "button";
   copyBtn.style.marginTop = "12px";
   copyBtn.addEventListener("click", async () => {
-    const ok = await copySignatureHtml(previewBox.firstChild);
+    const ok = await utils().copyNodeAsHtml(previewBox.firstChild);
     utils().showToast(ok ? "Handtekening gekopieerd — plak 'm in de handtekening-instellingen van Outlook of Gmail." : "Kopiëren is niet gelukt. Selecteer de handtekening hierboven handmatig en kopieer met Ctrl/Cmd+C.", ok ? "success" : "error");
   });
   section.appendChild(copyBtn);
