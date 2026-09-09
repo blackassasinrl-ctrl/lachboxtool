@@ -411,16 +411,50 @@ function knownNamesSorted(){
 function textMentionsName(text, name){
   return !!(text && name && text.includes("@" + name));
 }
+
+/* ---------- Record-links in notities/chat ----------
+   Zelfde idee als @tags, maar dan een klikbare verwijzing naar een
+   specifiek record (klant/lead/event/factuur/review) i.p.v. een naam —
+   zo kun je tijdens het chatten iemand direct "doorverbinden" naar de
+   juiste klant/factuur. Opgeslagen als platte tekst in het bericht
+   ([[type:id|Label]]), dus geen schemawijziging nodig. */
+const RECORD_LINK_ICONS = { customer: "👤", lead: "🎯", event: "📅", invoice: "🧾", review: "⭐" };
+const RECORD_LINK_TYPES = /customer|lead|event|invoice|review/.source;
+function encodeRecordLink(type, id, label){
+  const safeLabel = String(label == null ? "" : label).replace(/\]\]/g, "] ]").trim() || "record";
+  return `[[${type}:${id}|${safeLabel}]]`;
+}
+function navigateToRecordLink(type, id){
+  const n = LachboxOS.navigation;
+  if (!n) return;
+  if (type === "customer") n.navigateTo("crm/customers/" + id);
+  else if (type === "event" || type === "review") n.navigateTo("events/" + id);
+  else if (type === "invoice") n.navigateTo("invoices/" + id);
+  else if (type === "lead" && LachboxOS.crm) LachboxOS.crm.openLeadById(id);
+}
+function buildRecordLinkChip(type, id, label){
+  const chip = document.createElement("button");
+  chip.type = "button";
+  chip.className = "record-link";
+  chip.textContent = (RECORD_LINK_ICONS[type] || "🔗") + " " + label;
+  chip.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); navigateToRecordLink(type, id); });
+  return chip;
+}
 function renderTextWithMentions(text){
   const frag = document.createDocumentFragment();
   if (!text) return frag;
   const names = knownNamesSorted();
-  if (!names.length){ frag.appendChild(document.createTextNode(text)); return frag; }
-  const pattern = new RegExp("@(" + names.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|") + ")\\b", "g");
+  const mentionAlt = names.length ? names.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|") : "[^\\s\\S]";
+  const pattern = new RegExp(
+    "@(" + mentionAlt + ")\\b" +
+    "|\\[\\[(" + RECORD_LINK_TYPES + "):([\\w-]+)\\|([^\\]]+)\\]\\]",
+    "g"
+  );
   let lastIndex = 0, match;
   while ((match = pattern.exec(text))){
     if (match.index > lastIndex) frag.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
-    frag.appendChild(make("span", "mention", "@" + match[1]));
+    if (match[1] !== undefined) frag.appendChild(make("span", "mention", "@" + match[1]));
+    else frag.appendChild(buildRecordLinkChip(match[2], match[3], match[4]));
     lastIndex = match.index + match[0].length;
   }
   if (lastIndex < text.length) frag.appendChild(document.createTextNode(text.slice(lastIndex)));
@@ -436,18 +470,76 @@ function buildMentionButtons(onInsert){
   });
   return wrap;
 }
-function insertMentionAtCursor(input, name){
-  const insertText = "@" + name + " ";
+function insertTextAtCursor(input, text){
   const start = input.selectionStart != null ? input.selectionStart : input.value.length;
   const end = input.selectionEnd != null ? input.selectionEnd : input.value.length;
   const before = input.value.slice(0, start);
   const after = input.value.slice(end);
   const spacer = (before.length && !/\s$/.test(before)) ? " " : "";
+  const insertText = text + " ";
   input.value = before + spacer + insertText + after;
   input.dispatchEvent(new Event("input"));
   input.focus();
   const pos = (before + spacer + insertText).length;
   input.setSelectionRange(pos, pos);
+}
+function insertMentionAtCursor(input, name){
+  insertTextAtCursor(input, "@" + name);
+}
+function insertRecordLinkAtCursor(input, type, id, label){
+  insertTextAtCursor(input, encodeRecordLink(type, id, label));
+}
+
+/* ---------- Zoek-/koppel-popover: klant/lead/event/factuur/review ----------
+   Herbruikbare kleine zoekbox (input + live resultaten) die op elk
+   moment ergens onder een knop getoond kan worden — gebruikt door de
+   chat voor "koppel een record", maar los van chat-specifieke opmaak. */
+function buildRecordSearchPopover(onPick){
+  const wrap = make("div", "record-link-picker");
+  const toggleBtn = make("button", "mention-btn", "🔗 Koppelen");
+  toggleBtn.type = "button";
+  const panel = make("div", "record-link-panel");
+  panel.hidden = true;
+  const input = document.createElement("input");
+  input.type = "text";
+  input.placeholder = "Zoek klant, lead, event, factuur of review…";
+  panel.appendChild(input);
+  const results = make("div", "record-link-results");
+  panel.appendChild(results);
+
+  function renderResults(){
+    clear(results);
+    const items = (LachboxOS.search ? LachboxOS.search.resultsFor(input.value) : []);
+    if (!items.length){
+      results.appendChild(make("div", "empty-hint", input.value.trim() ? "Niets gevonden." : "Typ om te zoeken…"));
+      return;
+    }
+    items.forEach(item => {
+      const row = make("div", "sidebar-search-item");
+      const top = make("div", "sidebar-search-item-top");
+      top.appendChild(make("span", "sidebar-search-type", item.type));
+      top.appendChild(make("span", "sidebar-search-label", item.label));
+      row.appendChild(top);
+      if (item.sub) row.appendChild(make("div", "sidebar-search-sub", item.sub));
+      row.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        panel.hidden = true;
+        input.value = "";
+        onPick(item.recordType, item.id, item.label);
+      });
+      results.appendChild(row);
+    });
+  }
+  input.addEventListener("input", renderResults);
+  toggleBtn.addEventListener("click", () => {
+    panel.hidden = !panel.hidden;
+    if (!panel.hidden){ renderResults(); setTimeout(() => input.focus(), 20); }
+  });
+  document.addEventListener("click", (e) => { if (!wrap.contains(e.target)) panel.hidden = true; });
+
+  wrap.appendChild(toggleBtn);
+  wrap.appendChild(panel);
+  return wrap;
 }
 
 LachboxOS.utils = {
@@ -462,7 +554,8 @@ LachboxOS.utils = {
   showToast, askConfirm, openModal,
   fieldRow, textField, selectField,
   buildEmailSignatureNode, copyNodeAsHtml, currentSenderName,
-  textMentionsName, renderTextWithMentions, buildMentionButtons, insertMentionAtCursor
+  textMentionsName, renderTextWithMentions, buildMentionButtons, insertMentionAtCursor,
+  encodeRecordLink, navigateToRecordLink, insertRecordLinkAtCursor, buildRecordSearchPopover
 };
 
 })();

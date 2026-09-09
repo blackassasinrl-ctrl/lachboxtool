@@ -43,7 +43,10 @@ function renderChatPage(container){
   const textarea = document.createElement("textarea");
   textarea.rows = 2;
   textarea.placeholder = "Typ een bericht... (Enter verstuurt, Shift+Enter voor een nieuwe regel)";
-  chatCard.appendChild(utils().buildMentionButtons(name => utils().insertMentionAtCursor(textarea, name)));
+  const toolsRow = utils().make("div", "chat-tools-row");
+  toolsRow.appendChild(utils().buildMentionButtons(name => utils().insertMentionAtCursor(textarea, name)));
+  toolsRow.appendChild(utils().buildRecordSearchPopover((type, id, label) => utils().insertRecordLinkAtCursor(textarea, type, id, label)));
+  chatCard.appendChild(toolsRow);
 
   const inputRow = utils().make("div", "chat-input-row");
   inputRow.appendChild(textarea);

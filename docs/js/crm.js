@@ -132,17 +132,18 @@ function buildCustomerPicker(opts){
       });
 
       if (q){
+        // Opent het volledige "Nieuwe klant"-formulier (i.p.v. meteen een
+        // kale klant met alleen deze naam aan te maken) — zo vul je e-mail/
+        // telefoon/plaats meteen mee in, in plaats van straks apart op de
+        // klantpagina. skipAutoLead: we zitten al in een lead-aan-het-
+        //-maken-flow, dus geen tweede (lege) lead ernaast.
         const createItem = utils().make("div", "customer-picker-item cp-create", `+ Nieuwe klant "${input.value.trim()}" aanmaken`);
-        createItem.addEventListener("mousedown", async (e) => {
+        createItem.addEventListener("mousedown", (e) => {
           e.preventDefault();
-          const customer = await storage().saveCustomer({
-            company: "", contactPerson: input.value.trim(), street: "", houseNumber: "",
-            postalCode: "", city: "", country: "Nederland", email: "", phone: "", notes: ""
-          });
-          await state().refreshCustomers();
-          selectedId = customer.id;
-          utils().showToast("Klant aangemaakt.", "success");
-          renderSelected();
+          openCustomerQuickCreateModal((customer) => {
+            selectedId = customer.id;
+            renderSelected();
+          }, { prefill: { contactPerson: input.value.trim() }, skipAutoLead: true });
         });
         results.appendChild(createItem);
       }
@@ -561,8 +562,13 @@ function buildLeadsKanban(leads, onChanged){
 /* ============================================================
    Klanten: lijst + detail
    ============================================================ */
-function openCustomerQuickCreateModal(onSaved){
-  const customer = { company: "", contactPerson: "", street: "", houseNumber: "", postalCode: "", city: "", country: "Nederland", email: "", phone: "", notes: "" };
+function openCustomerQuickCreateModal(onSaved, opts){
+  opts = opts || {};
+  const prefill = opts.prefill || {};
+  const customer = {
+    company: prefill.company || "", contactPerson: prefill.contactPerson || "", street: "", houseNumber: "",
+    postalCode: "", city: "", country: "Nederland", email: "", phone: "", notes: ""
+  };
   utils().openModal({
     title: "Nieuwe klant",
     build(body, modal){
@@ -592,8 +598,27 @@ function openCustomerQuickCreateModal(onSaved){
         }
         const saved = await storage().saveCustomer(customer);
         await state().refreshCustomers();
+        let leadCreated = false;
+        if (!opts.skipAutoLead){
+          // Meteen ook een lege lead bij deze klant aanmaken — dezelfde
+          // gegevens hoef je dus maar één keer in te vullen. De lead blijft
+          // gewoon apart aan te vullen/bewerken (bijv. via de leadkaart of
+          // "+ Nieuwe lead"); dit zet 'm alleen alvast klaar.
+          try{
+            await storage().saveLead({
+              customerId: saved.id, source: "", status: "Nieuw", requestedPackages: [],
+              estimatedValue: 0, eventDate: "", eventType: "", eventLocation: "", notes: "",
+              nextAction: "", nextActionDate: "", temperature: "",
+              createdAt: utils().todayISO(), lastContactAt: utils().todayISO()
+            });
+            await state().refreshLeads();
+            leadCreated = true;
+          }catch(e){
+            utils().showToast("Klant aangemaakt, maar de lead kon niet automatisch aangemaakt worden: " + e.message, "error");
+          }
+        }
         modal.close();
-        utils().showToast("Klant aangemaakt.", "success");
+        utils().showToast(leadCreated ? "Klant en lead aangemaakt." : "Klant aangemaakt.", "success");
         if (onSaved) onSaved(saved);
       });
       actions.appendChild(cancelBtn); actions.appendChild(saveBtn);
@@ -609,26 +634,9 @@ function renderCustomersListPage(container){
   header.appendChild(utils().make("h1", "page-title", "Klanten"));
   const newBtn = utils().make("button", "btn primary", "+ Nieuwe klant");
   newBtn.type = "button";
-  newBtn.addEventListener("click", () => openCustomerQuickCreateModal(async (c) => {
-    // Meteen een (nog lege) boeking bij deze klant aanmaken — zonder daar
-    // eerst een apart scherm voor in te hoeven vullen, dat voelde als
-    // hetzelfde drie keer doen. De factuur blijft bewust een latere,
-    // losse stap (via "Factuur maken" op de eventpagina, zoals altijd) —
-    // dan bepaalt diegene die 'm verstuurt zelf het moment.
-    try{
-      await storage().saveEvent({
-        customerId: c.id, leadId: null,
-        eventName: state().customerDisplayName(c) || "Nieuwe boeking",
-        eventType: "", date: "", startTime: "", endTime: "", location: "", address: "",
-        package: "", price: 0, extras: [], costs: [], discount: 0, staff: "", notes: "",
-        checklistId: null, invoiceId: null, status: "Gepland"
-      });
-      await state().refreshEvents();
-    }catch(e){
-      utils().showToast("Klant aangemaakt, maar de boeking kon niet automatisch aangemaakt worden: " + e.message, "error");
-    }
-    nav().navigateTo("crm/customers/" + c.id);
-  }));
+  // openCustomerQuickCreateModal maakt er zelf meteen ook een gekoppelde
+  // lead bij (zie daar) — dezelfde gegevens dus maar één keer invullen.
+  newBtn.addEventListener("click", () => openCustomerQuickCreateModal((c) => nav().navigateTo("crm/customers/" + c.id)));
   header.appendChild(newBtn);
   page.appendChild(header);
 

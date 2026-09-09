@@ -25,7 +25,7 @@ function resultsFor(query){
     const hay = [c.company, c.contactPerson, c.email, c.city, c.phone].filter(Boolean).join(" ").toLowerCase();
     if (!hay.includes(q)) return;
     out.push({
-      type: "Klant", label: s.customerDisplayName(c),
+      type: "Klant", recordType: "customer", id: c.id, label: s.customerDisplayName(c),
       sub: [c.city, c.email].filter(Boolean).join(" · "),
       action: () => nav().navigateTo("crm/customers/" + c.id)
     });
@@ -36,7 +36,8 @@ function resultsFor(query){
     const hay = [l.eventType, l.eventLocation, l.status, customer ? s.customerDisplayName(customer) : ""].filter(Boolean).join(" ").toLowerCase();
     if (!hay.includes(q)) return;
     out.push({
-      type: "Lead", label: (customer ? s.customerDisplayName(customer) : "Naamloze lead") + (l.eventType ? " · " + l.eventType : ""),
+      type: "Lead", recordType: "lead", id: l.id,
+      label: (customer ? s.customerDisplayName(customer) : "Naamloze lead") + (l.eventType ? " · " + l.eventType : ""),
       sub: l.status,
       action: () => { if (LachboxOS.crm) LachboxOS.crm.openLeadById(l.id); }
     });
@@ -47,7 +48,7 @@ function resultsFor(query){
     const hay = [e.eventName, e.eventType, e.location, customer ? s.customerDisplayName(customer) : ""].filter(Boolean).join(" ").toLowerCase();
     if (!hay.includes(q)) return;
     out.push({
-      type: "Event", label: e.eventName || e.eventType || "Event",
+      type: "Event", recordType: "event", id: e.id, label: e.eventName || e.eventType || "Event",
       sub: [e.date ? utils().formatDateDisplay(e.date) : "", customer ? s.customerDisplayName(customer) : ""].filter(Boolean).join(" · "),
       action: () => nav().navigateTo("events/" + e.id)
     });
@@ -58,11 +59,30 @@ function resultsFor(query){
     const hay = [inv.invoiceNumber, inv.reference, customer ? s.customerDisplayName(customer) : ""].filter(Boolean).join(" ").toLowerCase();
     if (!hay.includes(q)) return;
     out.push({
-      type: "Factuur", label: inv.invoiceNumber || "Concept",
+      type: "Factuur", recordType: "invoice", id: inv.id, label: inv.invoiceNumber || "Concept",
       sub: [customer ? s.customerDisplayName(customer) : "", utils().formatCurrency(inv.total || 0)].filter(Boolean).join(" · "),
       action: () => nav().navigateTo("invoices/" + inv.id)
     });
   });
+
+  // Reviews leven op de eventpagina (geen eigen route) — alleen doorzoekbaar
+  // zodra er al een reviewtraject loopt, anders levert elk event een
+  // dubbele/niet-relevante "Review"-treffer op naast zijn eigen Event-rij.
+  if (LachboxOS.reviews){
+    s.cache.events.forEach(e => {
+      const review = LachboxOS.reviews.reviewOrStub(e);
+      if (!review || review.status === "niet_gevraagd") return;
+      const customer = s.getCustomerById(e.customerId);
+      const hay = [e.eventName, e.eventType, customer ? s.customerDisplayName(customer) : ""].filter(Boolean).join(" ").toLowerCase();
+      if (!hay.includes(q)) return;
+      out.push({
+        type: "Review", recordType: "review", id: e.id,
+        label: "Review — " + (customer ? s.customerDisplayName(customer) : (e.eventName || "Event")),
+        sub: LachboxOS.reviews.reviewStatusLabel(review.status),
+        action: () => nav().navigateTo("events/" + e.id)
+      });
+    });
+  }
 
   return out.slice(0, 15);
 }
